@@ -338,13 +338,13 @@ const ClassroomDetail = () => {
                                         <div style={{ fontSize: "12px", color: "var(--gc-text-secondary)" }}>
                                             <p style={{ margin: "4px 0" }}>Students: <strong>{classroom.students?.length || 0}</strong></p>
                                             <p style={{ margin: "4px 0" }}>Assignments: <strong>{assignments.length}</strong></p>
-                                            {classroom.joinLink && (
+                                            {classroom.code && (
                                                 <div style={{ marginTop: "8px" }}>
                                                     <p style={{ margin: "4px 0", fontWeight: 500, color: "var(--gc-text-primary)" }}>Join link:</p>
                                                     <input
                                                         type="text"
                                                         readOnly
-                                                        value={classroom.joinLink}
+                                                        value={`${window.location.origin}/classroom/${classroom.code}`}
                                                         style={{
                                                             width: "100%",
                                                             padding: "6px 8px",
@@ -355,7 +355,7 @@ const ClassroomDetail = () => {
                                                         }}
                                                         onClick={(e) => {
                                                             e.target.select();
-                                                            navigator.clipboard.writeText(classroom.joinLink);
+                                                            navigator.clipboard.writeText(`${window.location.origin}/classroom/${classroom.code}`);
                                                             toast.success("Link copied!");
                                                         }}
                                                     />
