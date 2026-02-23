@@ -1,46 +1,106 @@
-/* =====================
-   Global Theme Variables
-   ===================== */
+/* =============================================
+   Google Classroom-Inspired Design System
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  /* Educational palette: calm, professional blues/greens with warm accents */
-  --color-primary: #1e88e5; /* primary blue */
-  --color-primary-600: #1565c0;
-  --color-primary-50: #e3f2fd;
-  --color-secondary: #4caf50; /* lighter learning green */
-  --color-secondary-50: #e8f5e9;
-  --color-accent: #f9a825; /* warm accent for calls-to-action */
-  --color-bg: #f7f9fc; /* app background */
-  --color-surface: #ffffff; /* cards, surfaces */
-  --color-text: #1f2937; /* high-contrast gray */
-  --color-text-muted: #6b7280;
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
-  --shadow-md: 0 6px 20px rgba(0,0,0,0.10);
-  --radius-sm: 8px;
-  --radius-md: 14px;
+  /* Google Classroom Color Palette */
+  --gc-blue: #1967d2;
+  --gc-blue-hover: #1557b0;
+  --gc-blue-light: #e8f0fe;
+  --gc-blue-50: #d2e3fc;
+  --gc-green: #0d904f;
+  --gc-green-light: #e6f4ea;
+  --gc-red: #c5221f;
+  --gc-red-light: #fce8e6;
+  --gc-yellow: #e37400;
+  --gc-yellow-light: #fef7e0;
+  --gc-purple: #7627bb;
+  --gc-purple-light: #f3e8fd;
+  --gc-teal: #007b83;
+
+  /* Neutral Palette */
+  --gc-bg: #f6f8fc;
+  --gc-surface: #ffffff;
+  --gc-border: #dadce0;
+  --gc-border-light: #e8eaed;
+  --gc-text-primary: #202124;
+  --gc-text-secondary: #5f6368;
+  --gc-text-disabled: #80868b;
+  --gc-overlay: rgba(32, 33, 36, 0.6);
+
+  /* Elevation */
+  --gc-shadow-1: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --gc-shadow-2: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+  --gc-shadow-3: 0 4px 8px 3px rgba(60, 64, 67, 0.15), 0 1px 3px rgba(60, 64, 67, 0.3);
+  --gc-shadow-hover: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+
+  /* Spacing & Radius */
+  --gc-radius-sm: 8px;
+  --gc-radius-md: 12px;
+  --gc-radius-lg: 16px;
+  --gc-radius-full: 9999px;
+
+  /* Class card colors (Google Classroom-style header strips) */
+  --class-color-1: #1967d2;
+  --class-color-2: #0d904f;
+  --class-color-3: #e37400;
+  --class-color-4: #7627bb;
+  --class-color-5: #007b83;
+  --class-color-6: #c5221f;
 }
 
-/* Base resets and typography */
+/* ==================
+   Base Reset & Typography
+   ================== */
+
 html, body, #root {
   height: 100%;
 }
 
 body {
   margin: 0;
-  font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
-  color: var(--color-text);
-  background: var(--color-bg);
+  font-family: 'Inter', 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+  color: var(--gc-text-primary);
+  background: var(--gc-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  font-size: 14px;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  color: var(--color-text);
+  font-family: 'Google Sans', 'Inter', sans-serif;
+  color: var(--gc-text-primary);
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.125rem; }
+
+p {
+  color: var(--gc-text-secondary);
   margin: 0 0 0.5rem 0;
 }
 
-p { color: var(--color-text-muted); }
+a {
+  color: var(--gc-blue);
+  text-decoration: none;
+}
 
-/* Utility classes */
+a:hover {
+  text-decoration: underline;
+}
+
+/* ==================
+   App Container
+   ================== */
+
 .app-container {
   min-height: 100vh;
 }
@@ -54,173 +114,535 @@ body.meet-page #App {
   animation: none !important;
 }
 
-.elevated-card {
-  background: var(--color-surface);
-  border: none;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+/* ==================
+   Google Classroom Navbar
+   ================== */
+
+.gc-navbar {
+  background: var(--gc-surface) !important;
+  border-bottom: 1px solid var(--gc-border);
+  box-shadow: none;
+  padding: 0 16px;
+  min-height: 64px;
 }
 
-
-/* Themed buttons baseline transitions */
-.btn-primary-edu,
-.btn-success-edu,
-.btn-accent-edu,
-.btn-outline-edu {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.05s ease-in-out;
-}
-/* Dedicated dark/black button */
-.btn-dark-edu {
-  background: #111111;
-  border: 1px solid #111111;
-  color: #ffffff;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.05s ease-in-out;
-}
-.btn-dark-edu:hover,
-.btn-dark-edu:focus {
-  background: #1b1b1b; /* slightly lighter (faded) */
-  border-color: #1b1b1b;
-  color: #ffffff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-}
-.btn-dark-edu:active {
-  background: #000000; /* pressed slightly darker */
-  border-color: #000000;
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-}
-
-/* Dedicated gold button (filled) */
-.btn-gold-edu {
-  background: var(--color-accent);
-  border: 1px solid var(--color-accent);
-  color: #1f2937;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.btn-gold-edu:hover,
-.btn-gold-edu:focus {
-  background: #e09f14;
-  border-color: #e09f14;
-  color: #1f2937;
-  box-shadow: 0 4px 10px rgba(249,168,37,0.25);
-}
-.btn-gold-edu:active {
-  background: #c88910;
-  border-color: #c88910;
-  color: #1f2937;
-  box-shadow: 0 2px 6px rgba(249,168,37,0.2);
-}
-
-.btn-primary-edu {
-  background: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  color: #fff;
-}
-.btn-success-edu {
-  background: var(--color-secondary);
-  border: 1px solid var(--color-secondary);
-  color: #fff;
-}
-.btn-accent-edu {
-  background: var(--color-accent);
-  border: 1px solid var(--color-accent);
-  color: #1f2937;
-}
-
-/* Lighter (faded) hover/focus for themed buttons (excludes Teacher outline buttons) */
-.btn-primary-edu:hover,
-.btn-primary-edu:focus {
-  background: #42a5f5; /* lighter primary */
-  border-color: #42a5f5;
-  color: #ffffff;
-  box-shadow: 0 4px 10px rgba(30,136,229,0.25);
-}
-.btn-primary-edu:active {
-  background: #1565c0; /* pressed darker */
-  border-color: #1565c0;
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(21,101,192,0.2);
-}
-
-.btn-success-edu:hover,
-.btn-success-edu:focus {
-  background: #66bb6a; /* lighter green */
-  border-color: #66bb6a;
-  color: #ffffff;
-  box-shadow: 0 4px 10px rgba(76,175,80,0.25);
-}
-.btn-success-edu:active {
-  background: #43a047; /* pressed darker green */
-  border-color: #43a047;
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(67,160,71,0.2);
-}
-
-.btn-accent-edu:hover,
-.btn-accent-edu:focus {
-  background: #fdd835; /* lighter amber */
-  border-color: #fdd835;
-  color: #1f2937;
-  box-shadow: 0 4px 10px rgba(249,216,53,0.25);
-}
-.btn-accent-edu:active {
-  background: #fbc02d; /* pressed slightly darker amber */
-  border-color: #fbc02d;
-  color: #1f2937;
-  box-shadow: 0 2px 6px rgba(251,192,45,0.2);
-}
-
-.hero-wrap {
-  min-height: 90vh;
+.gc-navbar .navbar-brand {
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--gc-text-secondary) !important;
   display: flex;
+  align-items: center;
+  gap: 12px;
+  letter-spacing: 0;
+}
+
+.gc-navbar .navbar-brand .gc-logo-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--gc-blue);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
   justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+/* ==================
+   Buttons (Google Material Style)
+   ================== */
+
+.gc-btn {
+  font-family: 'Google Sans', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.25px;
+  border-radius: var(--gc-radius-full);
+  padding: 8px 24px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  line-height: 1.5;
+}
+
+.gc-btn:active {
+  transform: scale(0.98);
+}
+
+/* Primary (filled blue) */
+.gc-btn-primary {
+  background: var(--gc-blue);
+  color: #fff;
+}
+.gc-btn-primary:hover {
+  background: var(--gc-blue-hover);
+  box-shadow: var(--gc-shadow-1);
+}
+
+/* Secondary (outlined) */
+.gc-btn-secondary {
+  background: transparent;
+  color: var(--gc-blue);
+  border: 1px solid var(--gc-border);
+}
+.gc-btn-secondary:hover {
+  background: var(--gc-blue-light);
+  border-color: var(--gc-blue-50);
+}
+
+/* Success (green) */
+.gc-btn-success {
+  background: var(--gc-green);
+  color: #fff;
+}
+.gc-btn-success:hover {
+  background: #0b7b44;
+  box-shadow: var(--gc-shadow-1);
+}
+
+/* Danger (red) */
+.gc-btn-danger {
+  background: var(--gc-red);
+  color: #fff;
+}
+.gc-btn-danger:hover {
+  background: #a91e1c;
+  box-shadow: var(--gc-shadow-1);
+}
+
+/* Text button (no background) */
+.gc-btn-text {
+  background: transparent;
+  color: var(--gc-blue);
+  padding: 8px 12px;
+}
+.gc-btn-text:hover {
+  background: var(--gc-blue-light);
+}
+
+/* Icon button */
+.gc-btn-icon {
+  background: transparent;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gc-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  padding: 0;
+}
+.gc-btn-icon:hover {
+  background: rgba(95, 99, 104, 0.08);
+}
+
+/* FAB (Floating Action Button) */
+.gc-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--gc-surface);
+  color: var(--gc-blue);
+  border: none;
+  box-shadow: var(--gc-shadow-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.1s;
+}
+.gc-fab:hover {
+  box-shadow: 0 6px 12px 4px rgba(60, 64, 67, 0.2);
+}
+
+/* Legacy button compatibility classes */
+.btn-primary-edu {
+  background: var(--gc-blue) !important;
+  border: 1px solid var(--gc-blue) !important;
+  color: #fff !important;
+  border-radius: var(--gc-radius-full) !important;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.25px;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+.btn-primary-edu:hover, .btn-primary-edu:focus {
+  background: var(--gc-blue-hover) !important;
+  border-color: var(--gc-blue-hover) !important;
+  box-shadow: var(--gc-shadow-1) !important;
+  color: #fff !important;
+}
+
+.btn-success-edu {
+  background: var(--gc-green) !important;
+  border: 1px solid var(--gc-green) !important;
+  color: #fff !important;
+  border-radius: var(--gc-radius-full) !important;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+.btn-success-edu:hover, .btn-success-edu:focus {
+  background: #0b7b44 !important;
+  border-color: #0b7b44 !important;
+  box-shadow: var(--gc-shadow-1) !important;
+  color: #fff !important;
+}
+
+.btn-accent-edu {
+  background: var(--gc-yellow) !important;
+  border: 1px solid var(--gc-yellow) !important;
+  color: #fff !important;
+  border-radius: var(--gc-radius-full) !important;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+.btn-accent-edu:hover, .btn-accent-edu:focus {
+  background: #c46300 !important;
+  border-color: #c46300 !important;
+  box-shadow: var(--gc-shadow-1) !important;
+  color: #fff !important;
+}
+
+.btn-dark-edu {
+  background: var(--gc-text-primary) !important;
+  border: 1px solid var(--gc-text-primary) !important;
+  color: #fff !important;
+  border-radius: var(--gc-radius-full) !important;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+.btn-dark-edu:hover, .btn-dark-edu:focus {
+  background: #3c4043 !important;
+  border-color: #3c4043 !important;
+  box-shadow: var(--gc-shadow-1) !important;
+  color: #fff !important;
+}
+
+.btn-outline-edu {
+  background: transparent !important;
+  color: var(--gc-blue) !important;
+  border: 1px solid var(--gc-border) !important;
+  border-radius: var(--gc-radius-full) !important;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.btn-outline-edu:hover, .btn-outline-edu:focus {
+  background: var(--gc-blue-light) !important;
+  border-color: var(--gc-blue-50) !important;
+  color: var(--gc-blue) !important;
+}
+
+/* ==================
+   Cards (Google Classroom Style)
+   ================== */
+
+.gc-card {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: var(--gc-radius-md);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.gc-card:hover {
+  box-shadow: var(--gc-shadow-hover);
+}
+
+.gc-card-header {
+  padding: 16px 16px 12px;
+  position: relative;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  color: #fff;
+  border-radius: var(--gc-radius-md) var(--gc-radius-md) 0 0;
+}
+
+.gc-card-header h3 {
+  color: #fff;
+  font-size: 1.375rem;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.gc-card-header p {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.875rem;
+  margin: 4px 0 0;
+}
+
+.gc-card-body {
+  padding: 16px;
+}
+
+.gc-card-footer {
+  padding: 8px 16px;
+  border-top: 1px solid var(--gc-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Elevated card (legacy compat) */
+.elevated-card {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: var(--gc-radius-lg);
+  box-shadow: var(--gc-shadow-2);
+}
+
+/* ==================
+   Class Cards (Google Classroom colored headers)
+   ================== */
+
+.class-card {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: var(--gc-radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+  height: 100%;
+}
+
+.class-card:hover {
+  box-shadow: var(--gc-shadow-hover);
+}
+
+.class-card-header {
+  position: relative;
+  padding: 20px 16px 16px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.class-card-header h3 {
+  color: #fff;
+  font-size: 1.375rem;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.3;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.class-card-header p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.825rem;
+  margin: 4px 0 0;
+}
+
+.class-card-header .class-card-icon {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 28px;
+  opacity: 0.85;
+}
+
+.class-card-body {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--gc-border-light);
+  min-height: 50px;
+  display: flex;
   align-items: center;
 }
 
+.class-card-body p {
+  font-size: 0.8125rem;
+  color: var(--gc-text-secondary);
+  margin: 0;
+}
+
+/* Class card color variations */
+.class-card-blue .class-card-header { background: var(--class-color-1); }
+.class-card-green .class-card-header { background: var(--class-color-2); }
+.class-card-orange .class-card-header { background: var(--class-color-3); }
+.class-card-purple .class-card-header { background: var(--class-color-4); }
+.class-card-teal .class-card-header { background: var(--class-color-5); }
+.class-card-red .class-card-header { background: var(--class-color-6); }
+
+/* ==================
+   Forms (Material Style)
+   ================== */
+
+.form-control, .form-select {
+  border-radius: 4px !important;
+  padding: 12px 14px !important;
+  border: 1px solid var(--gc-border) !important;
+  font-size: 14px !important;
+  font-family: 'Inter', sans-serif !important;
+  color: var(--gc-text-primary) !important;
+  background: var(--gc-surface) !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--gc-blue) !important;
+  box-shadow: 0 0 0 2px var(--gc-blue-light) !important;
+  outline: none;
+}
+
+.form-control::placeholder {
+  color: var(--gc-text-disabled) !important;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gc-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+/* ==================
+   Layout Helpers
+   ================== */
+
+.gc-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.gc-page-wide {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.gc-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 64px);
+}
+
+.hero-wrap {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+/* ==================
+   Brand Text
+   ================== */
+
 .brand-gradient {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #42a5f5 50%, var(--color-secondary) 100%);
+  background: linear-gradient(135deg, var(--gc-blue) 0%, #4285f4 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* Navbar refinement */
-.edu-navbar {
-  background: var(--color-surface) !important;
-  box-shadow: var(--shadow-sm);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  backdrop-filter: saturate(120%) blur(6px);
+.gc-text-blue { color: var(--gc-blue); }
+.gc-text-green { color: var(--gc-green); }
+.gc-text-red { color: var(--gc-red); }
+.gc-text-secondary { color: var(--gc-text-secondary); }
+
+/* ==================
+   Dividers
+   ================== */
+
+.gc-divider {
+  border: none;
+  border-top: 1px solid var(--gc-border);
+  margin: 16px 0;
 }
 
-.btn-outline-edu {
-  background: transparent;
-  color: var(--color-text);
-  border: 2px solid var(--color-primary);
+/* ==================
+   Chips / Tags
+   ================== */
+
+.gc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--gc-radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--gc-blue-light);
+  color: var(--gc-blue);
+  border: none;
 }
 
-
-/* Form and input polish */
-.form-control, .form-select {
-  border-radius: 10px !important;
-  padding: 10px 12px !important;
-  border-color: #cfd8dc !important;
-}
-.form-control:focus, .form-select:focus {
-  border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 0.2rem rgba(30, 136, 229, 0.15) !important;
+.gc-chip-success {
+  background: var(--gc-green-light);
+  color: var(--gc-green);
 }
 
-.card-title {
-  color: var(--color-text);
+.gc-chip-danger {
+  background: var(--gc-red-light);
+  color: var(--gc-red);
 }
 
-/* Removed page-scoped overrides to unify hover behavior across the app */
+.gc-chip-warning {
+  background: var(--gc-yellow-light);
+  color: var(--gc-yellow);
+}
 
-/* Existing PDF view styles (kept) */
-.pdf-div{
+/* ==================
+   Empty State
+   ================== */
+
+.gc-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--gc-text-secondary);
+}
+
+.gc-empty-state .gc-empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.gc-empty-state h3 {
+  font-size: 1.125rem;
+  color: var(--gc-text-primary);
+  margin-bottom: 8px;
+}
+
+.gc-empty-state p {
+  font-size: 0.875rem;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+/* ==================
+   Existing PDF View Styles
+   ================== */
+
+.pdf-div {
   padding: 50px;
-  background-color: whitesmoke;
-  margin-top: 50px;
+  background-color: var(--gc-bg);
+  margin-top: 24px;
   display: flex;
   justify-content: center;
 }
@@ -234,13 +656,275 @@ canvas.react-pdf__Page__canvas {
   margin-bottom: 50px;
 }
 
-#viewMessage{
-  color: rgb(35, 239, 35);
+#viewMessage {
+  color: var(--gc-green);
   text-align: center;
 }
 
-/*
-Alternative older styles retained for reference
-.pdf-div{ padding: 50px; background-color: #dedede; margin-top: 50px; }
-canvas.react-pdf__Page__canvas { margin-bottom: 50px; }
-*/
+/* ==================
+   Scrollbar Styling
+   ================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gc-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gc-text-disabled);
+}
+
+/* ==================
+   Responsive Helpers
+   ================== */
+
+@media (max-width: 768px) {
+  .gc-page {
+    padding: 16px 12px;
+  }
+  
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.25rem; }
+  
+  .gc-navbar .navbar-brand {
+    font-size: 18px;
+  }
+}
+
+/* ==================
+   Animations
+   ================== */
+
+@keyframes gc-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gc-animate-in {
+  animation: gc-fade-in 0.3s ease-out;
+}
+
+@keyframes gc-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.gc-loading-pulse {
+  animation: gc-pulse 1.5s ease-in-out infinite;
+}
+
+/* ==================
+   Dashboard Shell (Professional layout)
+   ================== */
+
+.vc-shell {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.vc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.vc-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.vc-subtitle {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: var(--gc-text-secondary);
+}
+
+.vc-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.vc-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.vc-panel {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: var(--gc-radius-lg);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.vc-panel-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--gc-border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.vc-panel-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gc-text-primary);
+}
+
+.vc-panel-body {
+  padding: 16px;
+}
+
+.vc-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.vc-quick-card {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: var(--gc-radius-md);
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+
+.vc-quick-card:hover {
+  box-shadow: var(--gc-shadow-hover);
+}
+
+.vc-quick-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gc-blue-light);
+  color: var(--gc-blue);
+  flex: 0 0 auto;
+}
+
+.vc-quick-title {
+  font-weight: 600;
+  color: var(--gc-text-primary);
+  margin-bottom: 2px;
+}
+
+.vc-quick-subtitle {
+  font-size: 0.875rem;
+  color: var(--gc-text-secondary);
+  margin: 0;
+}
+
+@media (min-width: 980px) {
+  .vc-grid {
+    grid-template-columns: 2fr 1fr;
+    align-items: start;
+  }
+}
+
+/* ==================
+   First-time Onboarding (Prompt + Tutorial)
+   ================== */
+
+.vc-onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--gc-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  z-index: 9999;
+}
+
+.vc-onboarding-surface {
+  width: 100%;
+  max-width: 520px;
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: var(--gc-radius-lg);
+  box-shadow: var(--gc-shadow-3);
+  padding: 18px 18px 16px;
+  animation: gc-fade-in 0.2s ease-out;
+}
+
+.vc-onboarding-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.vc-onboarding-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--gc-blue);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Google Sans', 'Inter', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  flex: 0 0 auto;
+}
+
+.vc-onboarding-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--gc-text-primary);
+  margin-bottom: 6px;
+}
+
+.vc-onboarding-subtitle {
+  font-size: 0.9rem;
+  color: var(--gc-text-secondary);
+}
+
+.vc-onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.vc-onboarding-progress {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.vc-onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--gc-border);
+}
+
+.vc-onboarding-dot-active {
+  background: var(--gc-blue);
+}

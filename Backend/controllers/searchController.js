@@ -30,9 +30,9 @@ const searchFiles = async (req, res) => {
   try {
     const { college, filename, year, examType } = req.body;
 
-    if (!filename || !college) {
+    if (!filename) {
       return res.status(400).json({
-        error: "Filename, year, examType, and college are required fields.",
+        error: "Filename is required.",
       });
     }
 
@@ -55,15 +55,19 @@ const searchFiles = async (req, res) => {
 
     console.log(`📦 Total files found: ${allFiles.length}`);
 
-    // ✅ Step 2: Find the file manually in JS
+    // ✅ Step 2: Find the file (case-insensitive matching)
     const matchingFile = allFiles.find((file) => {
       const metadata = file.metadata || {};
-      return (
-        file.filename?.trim() === filename.trim() &&
-        metadata.college?.trim?.()?.toLowerCase() === college.trim().toLowerCase()
-        // && metadata.year?.toString() === year.toString() &&
-        // metadata.examType?.toString() === examType.toString()
-      );
+      const filenameMatch =
+        file.filename?.trim().toLowerCase() === filename.trim().toLowerCase();
+
+      // College is optional — if provided, filter by it
+      if (college) {
+        const collegeMatch =
+          metadata.college?.trim?.()?.toLowerCase() === college.trim().toLowerCase();
+        return filenameMatch && collegeMatch;
+      }
+      return filenameMatch;
     });
 
     console.log("🔍 Matching file:", matchingFile ? matchingFile.filename : "none");

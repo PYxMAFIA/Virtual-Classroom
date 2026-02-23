@@ -1,125 +1,115 @@
 import React, { useState } from "react";
+import { Form, Spinner } from "react-bootstrap";
 import axios from "axios";
-import { Button, Form, Spinner } from "react-bootstrap";
-import toast from 'react-hot-toast';
-import CardForDetails from "./cardForDeatils";
 import Cookies from "js-cookie";
+import toast from 'react-hot-toast';
 
 const AdminDownloadPage = () => {
   const [filename, setFilename] = useState("");
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-
+  const [error, setError] = useState("");
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = Cookies.get("token");
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
+    setError("");
 
-    // ✅ Validate and format filename
-    const formattedFilename = filename.trim();
-    if (!formattedFilename) {
-      setError("Please enter a valid filename.");
-      setLoading(false);
+    if (!filename.trim()) {
+      toast.error("Please enter a filename.");
       return;
     }
 
+    setLoading(true);
     try {
-      // ✅ Correct axios.post structure (only one config object)
+      // Format filename
+      let formatted = filename.trim();
+      if (!formatted.endsWith(".pdf")) {
+        formatted += ".pdf";
+      }
+
       const response = await axios.post(
         `${BACKEND_URL}/admindownload/search-files`,
-        { filename: formattedFilename },
+        { filename: formatted },
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          responseType: "blob", // ✅ Moved here
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: "blob",
         }
       );
 
-      // ✅ Check if response contains data
-      if (response && response.data) {
-        const blob = new Blob([response.data], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", formatted);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
-        // ✅ Auto-download file
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = formattedFilename.endsWith(".pdf")
-          ? formattedFilename
-          : `${formattedFilename}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        URL.revokeObjectURL(url);
-      } else {
-        const msg = "PDF file not found on the server.";
-        setError(msg);
-        toast.error(msg);
-      }
-    } catch (error) {
-      console.error("❌ Error occurred while downloading:", error);
-      if (error.response && error.response.status === 404) {
-        const msg = "File not found on the server.";
-        setError(msg);
-        toast.error(msg);
-      } else if (error.response && error.response.status === 401) {
-        const msg = "Unauthorized access. Please log in again.";
-        setError(msg);
-        toast.error(msg);
-      } else {
-        const msg = "An unexpected error occurred. Please try again later.";
-        setError(msg);
-        toast.error(msg);
-      }
+      console.log("✅ Admin download success:", formatted);
+      toast.success("File downloaded successfully!");
+    } catch (err) {
+      console.error("❌ Download error:", err?.response?.data || err.message);
+      const msg = err?.response?.data?.message || "Failed to download file. Please check the filename and try again.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="container mt-5">
-      <h1 className="mb-4 fw-semibold brand-gradient">Admin Download Page</h1>
+    <div className="gc-center">
+      <div className="elevated-card gc-animate-in" style={{ width: "460px", padding: "40px 32px" }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ fontSize: "40px", marginBottom: "8px" }}>📥</div>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 500, marginBottom: "4px" }}>Download File</h2>
+          <p style={{ color: "var(--gc-text-secondary)", fontSize: "14px", margin: 0 }}>
+            Enter the filename to download a verified assignment
+          </p>
+        </div>
 
-      <Form onSubmit={handleSubmit}>
-        <Form.Group controlId="filename" className="mb-3">
-          <Form.Label>Enter filename:</Form.Label>
-          <Form.Control
-            type="text"
-            value={filename}
-            onChange={(e) => setFilename(e.target.value)}
-            placeholder="Enter filename (e.g. RahulHomework_PK007.pdf)"
-            required
-          />
-        </Form.Group>
+        {error && (
+          <div style={{
+            background: "var(--gc-red-light)",
+            color: "var(--gc-red)",
+            padding: "10px 14px",
+            borderRadius: "8px",
+            fontSize: "13px",
+            marginBottom: "16px",
+            textAlign: "center"
+          }}>
+            {error}
+          </div>
+        )}
 
-        <Button type="submit" className="btn-primary-edu" disabled={loading}>
-          {loading ? (
-            <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-                className="me-2"
-              />
-              Downloading...
-            </>
-          ) : (
-            "Download"
-          )}
-        </Button>
-      </Form>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label>Filename</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="e.g. CS101_Assignment_1.pdf"
+              value={filename}
+              onChange={(e) => setFilename(e.target.value)}
+              required
+            />
+          </Form.Group>
 
-      {/* Errors are shown via toast notifications */}
-
-      <hr className="my-5" />
-
-      <CardForDetails />
+          <button
+            className="gc-btn gc-btn-primary"
+            type="submit"
+            disabled={loading}
+            style={{ width: "100%", padding: "12px", marginTop: "8px", fontSize: "15px" }}
+          >
+            {loading ? (
+              <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+            ) : (
+              "Download"
+            )}
+          </button>
+        </Form>
+      </div>
     </div>
   );
 };

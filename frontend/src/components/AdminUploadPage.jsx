@@ -1,134 +1,125 @@
 import React, { useState } from "react";
-import { Container, Form, Button, Spinner, Card } from "react-bootstrap";
-import toast from "react-hot-toast";
-import Cookies from "js-cookie";
+import { Form, Spinner } from "react-bootstrap";
 import axios from "axios";
+import Cookies from "js-cookie";
+import toast from 'react-hot-toast';
 
 const AdminUploadPage = () => {
   const [file, setFile] = useState(null);
   const [filename, setFilename] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const [error, setError] = useState("");
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const token = Cookies.get("token"); // Assuming auth token is stored in cookies
-
-  // Handlers
-  const handleFileChange = (e) => setFile(e.target.files[0]);
-  const handleFilenameChange = (e) => setFilename(e.target.value);
+  const token = Cookies.get("token");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    if (!file || !filename.trim()) {
-      toast.error("⚠️ Please provide both filename and file before uploading.");
+    if (!file) {
+      toast.error("Please select a file to upload.");
+      return;
+    }
+    if (!filename.trim()) {
+      toast.error("Please enter a filename.");
       return;
     }
 
     setLoading(true);
-
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("filename", filename.trim().toUpperCase());
+      formData.append("filename", filename.trim());
 
-      const response = await axios.post(
-        `${BACKEND_URL}/adminupload/upload-files`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      await axios.post(BACKEND_URL + "/adminupload/upload-files", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      if (response.status === 200) {
-        toast.success("✅ File uploaded successfully!");
-        setFilename("");
-        setFile(null);
-      }
+      console.log("✅ Admin upload success");
+      toast.success("File uploaded successfully!");
+      setFile(null);
+      setFilename("");
     } catch (err) {
-      console.error("❌ Upload error:", err);
-      toast.error("❌ Error while uploading. Please try again.");
+      console.error("❌ Upload error:", err?.response?.data || err.message);
+      const msg = err?.response?.data?.message || "Failed to upload file. Please try again.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container
-      className="d-flex justify-content-center align-items-center"
-      style={{ minHeight: "100vh" }}
-    >
-      <Card
-        className="shadow-lg"
-        style={{
-          maxWidth: "560px",
-          padding: "28px",
-          borderRadius: "14px",
-          border: "1px solid #e0e0e0",
-        }}
-      >
-        <h2 className="text-center mb-4 fw-semibold text-primary">
-          📤 Admin Homework Upload
-        </h2>
+    <div className="gc-center">
+      <div className="elevated-card gc-animate-in" style={{ width: "460px", padding: "40px 32px" }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ fontSize: "40px", marginBottom: "8px" }}>📤</div>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 500, marginBottom: "4px" }}>Upload Assignment</h2>
+          <p style={{ color: "var(--gc-text-secondary)", fontSize: "14px", margin: 0 }}>
+            Upload a verified assignment for students to download
+          </p>
+        </div>
+
+        {error && (
+          <div style={{
+            background: "var(--gc-red-light)",
+            color: "var(--gc-red)",
+            padding: "10px 14px",
+            borderRadius: "8px",
+            fontSize: "13px",
+            marginBottom: "16px",
+            textAlign: "center"
+          }}>
+            {error}
+          </div>
+        )}
 
         <Form onSubmit={handleSubmit}>
-          {/* Filename */}
-          <Form.Group controlId="formFilename" className="mb-3">
-            <Form.Label style={{ fontWeight: "500" }}>Filename</Form.Label>
+          <Form.Group className="mb-3">
+            <Form.Label>Filename</Form.Label>
             <Form.Control
               type="text"
+              placeholder="e.g. CS101_Midterm_Solutions"
               value={filename}
-              onChange={handleFilenameChange}
-              placeholder="Enter filename (e.g., SCIENCE_HOMEWORK)"
+              onChange={(e) => setFilename(e.target.value)}
               required
-              style={{
-                borderRadius: "10px",
-                padding: "12px",
-                border: "1px solid #ced4da",
-              }}
             />
           </Form.Group>
 
-          {/* File Upload */}
-          <Form.Group controlId="formFile" className="mb-3">
-            <Form.Label style={{ fontWeight: "500" }}>Choose File</Form.Label>
+          <Form.Group className="mb-3">
+            <Form.Label>File (PDF)</Form.Label>
             <Form.Control
               type="file"
-              onChange={handleFileChange}
+              accept=".pdf"
+              onChange={(e) => setFile(e.target.files[0])}
               required
-              style={{
-                borderRadius: "10px",
-                padding: "10px",
-              }}
             />
+            {file && (
+              <small style={{ color: "var(--gc-text-secondary)", marginTop: "4px", display: "block" }}>
+                {file.name} • {(file.size / 1024).toFixed(1)} KB
+              </small>
+            )}
           </Form.Group>
 
-          {/* Submit Button */}
-          <Button
+          <button
+            className="gc-btn gc-btn-primary"
             type="submit"
-            className="w-100 btn-primary-edu"
-            style={{
-              borderRadius: "10px",
-              padding: "12px",
-              backgroundColor: "#007bff",
-              border: "none",
-              fontWeight: "500",
-            }}
-            disabled={!file || !filename || loading}
+            disabled={loading}
+            style={{ width: "100%", padding: "12px", marginTop: "8px", fontSize: "15px" }}
           >
             {loading ? (
-              <>
-                <Spinner animation="border" size="sm" /> Uploading...
-              </>
+              <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
             ) : (
               "Upload"
             )}
-          </Button>
+          </button>
         </Form>
-      </Card>
-    </Container>
+      </div>
+    </div>
   );
 };
 

@@ -4,6 +4,7 @@
     "build": "npm i"
   },
   "dependencies": {
+    "@google/genai": "^1.42.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -11,7 +12,9 @@
     "email-otp-verify": "^1.1.1",
     "express": "^4.21.2",
     "fs": "^0.0.1-security",
+    "google-auth-library": "^9.15.1",
     "html-pdf": "^3.0.1",
+    "joi": "^17.13.3",
     "json5": "^2.2.3",
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.7.1",

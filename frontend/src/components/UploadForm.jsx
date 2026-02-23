@@ -1,194 +1,263 @@
 import React, { useState, useEffect } from "react";
-import toast from 'react-hot-toast';
-import { Form, Button, Card, Spinner } from "react-bootstrap";
+import { Form, Spinner } from "react-bootstrap";
 import axios from "axios";
+import toast from 'react-hot-toast';
+import { getToken, getUser } from "../utils/auth";
 import { useNavigate } from "react-router-dom";
 
-function UploadForm() {
-  const navigate = useNavigate();
+const UploadForm = () => {
   const [file, setFile] = useState(null);
-  const [formData, setFormData] = useState({
-    year: "",
-    subjectCode: "",
-    college: "",
-    examType: "", // ✅ Added new field
-  });
+  const [year, setYear] = useState("");
+  const [subjectCode, setSubjectCode] = useState("");
+  const [college, setCollege] = useState("");
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [assignmentTitle, setAssignmentTitle] = useState("");
+  const navigate = useNavigate();
+
+  const queryParams = new URLSearchParams(window.location.search);
+  const assignmentId = queryParams.get("assignmentId");
+
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = getToken();
+  const user = getUser();
 
-  // fetch colleges from API
+  // Fetch assignment info if submitting for an assignment
   useEffect(() => {
-    async function fetchColleges() {
-      try {
-        const res = await axios.get(BACKEND_URL + "/tools/colleges");
-
-        if (Array.isArray(res.data.value) && res.data.value[0]?.name) {
-          setColleges(res.data.value.map((c) => c.name));
-        } else if (Array.isArray(res.data)) {
-          setColleges(res.data);
-        } else {
-          setColleges([]);
+    if (assignmentId && token) {
+      const fetchAssignment = async () => {
+        try {
+          const res = await axios.get(`${BACKEND_URL}/assignment/item/${assignmentId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setAssignmentTitle(res.data?.assignment?.title || "Assignment");
+        } catch (err) {
+          console.error("Error fetching assignment:", err);
         }
-      } catch (err) {
-        console.error("Error fetching colleges:", err);
-        setError("⚠️ Could not load Teachers. Please try again later.");
-      }
+      };
+      fetchAssignment();
     }
-    fetchColleges();
-  }, [BACKEND_URL]);
+  }, [assignmentId, BACKEND_URL, token]);
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // Fetch colleges for legacy upload flow
+  useEffect(() => {
+    if (!assignmentId) {
+      const fetchColleges = async () => {
+        try {
+          const response = await axios.get(BACKEND_URL + "/tools/colleges");
+          setColleges(response.data?.colleges || []);
+        } catch (err) {
+          console.error("Error fetching colleges:", err);
+        }
+      };
+      fetchColleges();
+    }
+  }, [assignmentId, BACKEND_URL]);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
 
-  const handleUpload = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (!file) {
+      toast.error("Please select a file to upload.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const formDataWithFile = new FormData();
-      formDataWithFile.append("year", formData.year);
-      formDataWithFile.append("subjectcode", formData.subjectCode);
-      formDataWithFile.append("college", formData.college);
-      formDataWithFile.append("examType", formData.examType); // ✅ Added exam type
-      formDataWithFile.append("file", file);
+      const formData = new FormData();
+      formData.append("file", file);
 
-      const response = await axios.post(
-        BACKEND_URL + "/student/upload-files",
-        formDataWithFile
-      );
-
-      console.log(response.data.message);
-      if (response.data.status === 1) {
-  toast.success("✅ File uploaded successfully");
-        navigate("/");
+      let endpoint = `${BACKEND_URL}/student/upload-files`;
+      if (assignmentId) {
+        endpoint = `${BACKEND_URL}/submission/submit`;
+        formData.append("assignmentId", assignmentId);
       } else {
-  toast.error("⚠️ Try again after some time");
-        window.location.reload(true);
+        if (!college || !year || !subjectCode) {
+          toast.error("Please fill in all fields.");
+          setLoading(false);
+          return;
+        }
+        formData.append("year", year);
+        formData.append("subjectCode", subjectCode);
+        formData.append("college", college);
       }
-    } catch (error) {
-      console.error("Error uploading file:", error);
-  toast.error("❌ Please provide necessary details");
-      window.location.reload(true);
+
+      await axios.post(endpoint, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`
+        },
+      });
+
+      toast.success(assignmentId ? "Solution submitted!" : "File uploaded successfully!");
+      setFile(null);
+      if (assignmentId) {
+        navigate(-1); // Go back to classroom
+      } else {
+        setYear("");
+        setSubjectCode("");
+        setCollege("");
+      }
+    } catch (err) {
+      console.error("Upload error:", err?.response?.data || err.message);
+      const msg = err?.response?.data?.message || "Failed to upload file. Please try again.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="d-flex align-items-center justify-content-center" style={{ minHeight: "100vh" }}>
-      <Card className="elevated-card" style={{ width: "520px", padding: "28px" }}>
-        <Card.Body>
-          <h2 className="text-center mb-4 fw-semibold brand-gradient">Homework Upload</h2>
-          <Form onSubmit={handleUpload}>
-            <Form.Group className="mb-3" controlId="formGroupCollege">
-              <Form.Label style={{ fontWeight: "500" }}>Select Teacher</Form.Label>
-              <Form.Select
-                name="college"
-                value={formData.college}
-                onChange={handleInputChange}
-                required
-                style={{ borderRadius: "10px", padding: "12px" }}
-              >
-                <option value="">-- Select Teacher --</option>
-                {colleges.map((clg, index) => (
-                  <option key={index} value={clg}>
-                    {clg}
-                  </option>
-                ))}
-              </Form.Select>
+  // ----- Assignment submission UI (clean minimal) -----
+  if (assignmentId) {
+    return (
+      <div className="gc-center">
+        <div className="elevated-card gc-animate-in" style={{ width: "480px", padding: "40px 32px" }}>
+          <div style={{ textAlign: "center", marginBottom: "28px" }}>
+            <div style={{ fontSize: "40px", marginBottom: "8px" }}>📄</div>
+            <h2 style={{ fontSize: "1.5rem", fontWeight: 500, marginBottom: "4px" }}>Submit Your Work</h2>
+            <p style={{ color: "var(--gc-text-secondary)", fontSize: "14px", margin: 0 }}>
+              {assignmentTitle ? `For: ${assignmentTitle}` : "Upload your solution as a PDF"}
+            </p>
+          </div>
+
+          {error && (
+            <div style={{
+              background: "var(--gc-red-light)", color: "var(--gc-red)",
+              padding: "10px 14px", borderRadius: "8px", fontSize: "13px",
+              marginBottom: "16px", textAlign: "center"
+            }}>
+              {error}
+            </div>
+          )}
+
+          <Form onSubmit={handleSubmit}>
+            <Form.Group className="mb-3">
+              <Form.Label>Solution File (PDF)</Form.Label>
+              <Form.Control type="file" accept=".pdf,.doc,.docx" onChange={handleFileChange} required />
+              {file && (
+                <small style={{ color: "var(--gc-text-secondary)", marginTop: "4px", display: "block" }}>
+                  {file.name} • {(file.size / 1024).toFixed(1)} KB
+                </small>
+              )}
             </Form.Group>
 
-            {/* <Form.Group className="mb-3" controlId="formGroupYear">
-              <Form.Label style={{ fontWeight: "500" }}>Select Year</Form.Label>
-              <Form.Select
-                name="year"
-                value={formData.year}
-                onChange={handleInputChange}
-                required
-                style={{ borderRadius: "10px", padding: "12px" }}
-              >
-                <option value="">Select Year</option>
-                <option value="2022">2022</option>
-                <option value="2023">2023</option>
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-              </Form.Select>
-            </Form.Group> */}
-
-
-            <Form.Group className="mb-3" controlId="formGroupCode">
-              <Form.Label style={{ fontWeight: "500" }}>
-                Homework Code
-              </Form.Label>
-              <Form.Control
-                type="text"
-                name="subjectCode"
-                placeholder="Optional"
-                value={formData.subjectCode}
-                onChange={handleInputChange}
-                style={{ borderRadius: "10px", padding: "12px" }}
-              />
-            </Form.Group>
-
-            {/* ✅ Homework Type Dropdown */}
-            {/* <Form.Group className="mb-3" controlId="formGroupExamType">
-              <Form.Label style={{ fontWeight: "500" }}>Homework Type</Form.Label>
-              <Form.Select
-                name="examType"
-                value={formData.examType}
-                onChange={handleInputChange}
-                required
-                style={{ borderRadius: "10px", padding: "12px" }}
-              >
-                <option value="">Select Homework Type</option>
-                <option value="2">Mid Semester</option>
-                <option value="1">End Semester</option>
-              </Form.Select>
-            </Form.Group> */}
-
-            <Form.Group className="mb-3" controlId="formGroupFile">
-              <Form.Label style={{ fontWeight: "500" }}>Select File</Form.Label>
-              <Form.Control
-                type="file"
-                accept=".pdf"
-                onChange={handleFileChange}
-                required
-                style={{ borderRadius: "10px", padding: "10px" }}
-              />
-            </Form.Group>
-
-            <Button
-              className="btn-primary-edu"
+            <button
+              className="gc-btn gc-btn-primary"
               type="submit"
               disabled={loading}
-              style={{
-                borderRadius: "10px",
-                padding: "12px",
-                fontWeight: "500",
-                fontSize: "16px",
-              }}
+              style={{ width: "100%", padding: "12px", marginTop: "8px", fontSize: "15px" }}
             >
               {loading ? (
-                <>
-                  <Spinner animation="border" size="sm" /> Uploading...
-                </>
+                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
               ) : (
-                "Upload"
+                "Submit Solution"
               )}
-            </Button>
+            </button>
 
-            {error && <p className="text-danger mt-3 text-center">{error}</p>}
+            <button
+              type="button"
+              className="gc-btn gc-btn-secondary"
+              style={{ width: "100%", marginTop: "10px" }}
+              onClick={() => navigate(-1)}
+            >
+              ← Back to Classroom
+            </button>
           </Form>
-        </Card.Body>
-      </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // ----- Legacy file upload UI (teacher upload for resources) -----
+  return (
+    <div className="gc-center">
+      <div className="elevated-card gc-animate-in" style={{ width: "480px", padding: "40px 32px" }}>
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ fontSize: "40px", marginBottom: "8px" }}>📤</div>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 500, marginBottom: "4px" }}>Upload File</h2>
+          <p style={{ color: "var(--gc-text-secondary)", fontSize: "14px", margin: 0 }}>
+            Upload a resource file
+          </p>
+        </div>
+
+        {error && (
+          <div style={{
+            background: "var(--gc-red-light)", color: "var(--gc-red)",
+            padding: "10px 14px", borderRadius: "8px", fontSize: "13px",
+            marginBottom: "16px", textAlign: "center"
+          }}>
+            {error}
+          </div>
+        )}
+
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label>Teacher</Form.Label>
+            <Form.Select value={college} onChange={(e) => setCollege(e.target.value)} required>
+              <option value="">Select teacher</option>
+              {colleges.map((c, i) => (
+                <option key={i} value={c}>{c}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+
+          <div style={{ display: "flex", gap: "12px" }}>
+            <Form.Group className="mb-3" style={{ flex: 1 }}>
+              <Form.Label>Year</Form.Label>
+              <Form.Select value={year} onChange={(e) => setYear(e.target.value)} required>
+                <option value="">Select year</option>
+                <option value="1st">1st Year</option>
+                <option value="2nd">2nd Year</option>
+                <option value="3rd">3rd Year</option>
+                <option value="4th">4th Year</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3" style={{ flex: 1 }}>
+              <Form.Label>Subject Code</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="e.g. CS101"
+                value={subjectCode}
+                onChange={(e) => setSubjectCode(e.target.value)}
+                required
+              />
+            </Form.Group>
+          </div>
+
+          <Form.Group className="mb-3">
+            <Form.Label>File (PDF)</Form.Label>
+            <Form.Control type="file" accept=".pdf" onChange={handleFileChange} required />
+            {file && (
+              <small style={{ color: "var(--gc-text-secondary)", marginTop: "4px", display: "block" }}>
+                {file.name} • {(file.size / 1024).toFixed(1)} KB
+              </small>
+            )}
+          </Form.Group>
+
+          <button
+            className="gc-btn gc-btn-primary"
+            type="submit"
+            disabled={loading}
+            style={{ width: "100%", padding: "12px", marginTop: "8px", fontSize: "15px" }}
+          >
+            {loading ? (
+              <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+            ) : (
+              "Upload"
+            )}
+          </button>
+        </Form>
+      </div>
     </div>
   );
-}
+};
 
 export default UploadForm;

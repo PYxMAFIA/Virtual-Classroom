@@ -1,207 +1,147 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Form, Button, Card, Row, Col, Spinner } from "react-bootstrap";
+import React, { useState, useEffect } from "react";
+import { Form, Spinner } from "react-bootstrap";
 import axios from "axios";
-import { pdfjs } from "react-pdf";
+import NAV from "../components/navbar";
 import PdfView from "../components/PdfView";
-import "../App.css"; // local CSS
-
-// Configure worker for PDF rendering
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.js",
-  import.meta.url
-).toString();
+import toast from 'react-hot-toast';
 
 const Previous = () => {
-  const [subjectCode, setSubjectCode] = useState("");
+  const [filename, setFilename] = useState("");
   const [college, setCollege] = useState("");
-  const [colleges, setColleges] = useState([]); // list from API
-  const [year, setYear] = useState("");
-  const [examType, setExamType] = useState(""); // 1 = End Sem, 2 = Mid Sem
+  const [examType, setExamType] = useState("");
+  const [colleges, setColleges] = useState([]);
+  const [pdfData, setPdfData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [viewLoading, setViewLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [pdfFile, setPdfFile] = useState(null);
-  const pdfRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  // scroll into view when PDF loads
   useEffect(() => {
-    if (pdfFile && pdfRef.current) {
-      pdfRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [pdfFile]);
-
-  // fetch colleges on mount
-  useEffect(() => {
-    async function fetchColleges() {
+    const fetchColleges = async () => {
       try {
-        const res = await axios.get(BACKEND_URL + "/tools/colleges");
-
-        if (Array.isArray(res.data.value) && res.data.value[0]?.name) {
-          setColleges(res.data.value.map((c) => c.name));
-        } else {
-          setColleges([]);
-        }
+        const response = await axios.get(BACKEND_URL + "/tools/colleges");
+        setColleges(response.data?.value || []);
       } catch (err) {
         console.error("Error fetching colleges:", err);
-        setError("⚠️ Could not load Teachers List. Please try again later.");
       }
-    }
+    };
     fetchColleges();
-  }, [BACKEND_URL]);
+  }, []);
 
-  async function handleDownload(e) {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setPdfData(null);
 
+    if (!filename.trim()) {
+      toast.error("Please enter a filename to search.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const filename = subjectCode.trim().toUpperCase();
+      let formatted = filename.trim();
+      if (!formatted.endsWith(".pdf")) {
+        formatted += ".pdf";
+      }
+
+      const body = { filename: formatted };
+      if (college) body.college = college;
+      if (examType) body.examType = examType;
+
       const response = await axios.post(
-        BACKEND_URL + "/search/search-files",
-        { college, filename, year, examType: examType },
+        `${BACKEND_URL}/search/search-files`,
+        body,
         { responseType: "blob" }
       );
 
-      if (response.data.size > 0) {
-        const blob = new Blob([response.data], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `${filename}.pdf`);
-        link.click();
-        URL.revokeObjectURL(url);
-      } else {
-        setError("❌ No PDF found for this subject code.");
-      }
+      console.log("✅ File found and downloaded");
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      setPdfData(url);
+      toast.success("File found!");
     } catch (err) {
-      console.error("Download error:", err);
-      setError("❌ No PDF found for this subject code.");
+      // When responseType is 'blob', error responses are also blobs — parse them
+      let errorMsg = "File not found. Try a different search.";
+      if (err?.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const parsed = JSON.parse(text);
+          errorMsg = parsed.error || errorMsg;
+        } catch (_) { }
+      } else if (err?.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      }
+      console.error("❌ Search error:", errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleView(e) {
-    e.preventDefault();
-    setError("");
-    setViewLoading(true);
-
-    try {
-      const filename = subjectCode.toUpperCase();
-      const response = await axios.post(
-        BACKEND_URL + "/search/search-files",
-        { college, filename, year, examType },
-        { responseType: "blob" }
-      );
-
-      if (response.data.size > 0) {
-        const blob = new Blob([response.data], { type: "application/pdf" });
-        setPdfFile(blob);
-      } else {
-        setError("❌ No PDF found for this subject code.");
-      }
-    } catch (err) {
-      console.error("View error:", err);
-      setError("❌ No PDF found for this subject code.");
-    } finally {
-      setViewLoading(false);
-    }
-  }
+  };
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: "80px" }}>
-      <div className="d-flex justify-content-center">
-        <Card className="p-4 elevated-card" style={{ maxWidth: "640px" }}>
-          <h1 className="mb-4 text-center brand-gradient">📘 Homework</h1>
-          <Form>
-            <Form.Group controlId="subjectCode" className="mb-3">
-              <Form.Label>Homework Code</Form.Label>
-              <Form.Control
-                type="text"
-                value={subjectCode}
-                onChange={(e) => setSubjectCode(e.target.value)}
-                placeholder="Enter Homework Code"
-                required
-              />
-            </Form.Group>
-
-            <Form.Group controlId="college" className="mb-3">
-              <Form.Label>Select Teacher</Form.Label>
-              <Form.Select
-                value={college}
-                onChange={(e) => setCollege(e.target.value)}
-                required
-              >
-                <option value="">-- Select Teacher --</option>
-                {colleges.map((clg, index) => (
-                  <option key={index} value={clg}>
-                    {clg}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            {/* <Row>
-              <Col>
-                <Form.Group controlId="year" className="mb-3">
-                  <Form.Label>Year</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    placeholder="Enter Year (e.g. 2023)"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col>
-                <Form.Group controlId="examType" className="mb-3">
-                  <Form.Label>Exam Type</Form.Label>
-                  <Form.Select
-                    value={examType}
-                    onChange={(e) => setExamType(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Select Exam --</option>
-                    <option value="1">End Sem</option>
-                    <option value="2">Mid Sem</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row> */}
-
-            <Row className="mt-4">
-              <Col>
-                <Button onClick={handleView} className="w-100 btn-primary-edu" disabled={loading || viewLoading}>
-                  {viewLoading ? (
-                    <Spinner size="sm" animation="border" />
-                  ) : (
-                    "View"
-                  )}
-                </Button>
-              </Col>
-              <Col>
-                <Button onClick={handleDownload} className="w-100 btn-success-edu" disabled={loading || viewLoading}>
-                  {loading ? (
-                    <Spinner size="sm" animation="border" />
-                  ) : (
-                    "Download"
-                  )}
-                </Button>
-              </Col>
-            </Row>
-          </Form>
-          {error && <p className="text-danger mt-3 text-center">{error}</p>}
-        </Card>
-      </div>
-
-      {pdfFile && (
-        <div ref={pdfRef} className="mt-5">
-          <PdfView pdf={pdfFile} />
+    <>
+      <NAV />
+      <div className="gc-page" style={{ paddingTop: "88px" }}>
+        <div className="gc-animate-in" style={{ marginBottom: "24px" }}>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 500 }}>Download Homework</h1>
+          <p style={{ color: "var(--gc-text-secondary)", fontSize: "14px" }}>
+            Search and download assignments
+          </p>
         </div>
-      )}
-    </div>
+
+        <div className="elevated-card gc-animate-in" style={{ padding: "24px", marginBottom: "24px" }}>
+          <Form onSubmit={handleSearch}>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <Form.Group style={{ flex: "2", minWidth: "200px" }}>
+                <Form.Label>Filename</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="e.g. CS101_Assignment_1"
+                  value={filename}
+                  onChange={(e) => setFilename(e.target.value)}
+                  required
+                />
+              </Form.Group>
+
+              <Form.Group style={{ flex: "1", minWidth: "150px" }}>
+                <Form.Label>Teacher</Form.Label>
+                <Form.Select value={college} onChange={(e) => setCollege(e.target.value)}>
+                  <option value="">All</option>
+                  {colleges.map((c, i) => (
+                    <option key={i} value={c.name || c.email}>{c.name || c.email}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </div>
+
+            <div style={{ marginTop: "16px" }}>
+              <button
+                className="gc-btn gc-btn-primary"
+                type="submit"
+                disabled={loading}
+                style={{ padding: "10px 32px" }}
+              >
+                {loading ? (
+                  <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                ) : (
+                  "Search"
+                )}
+              </button>
+            </div>
+          </Form>
+        </div>
+
+        {pdfData && (
+          <div className="gc-animate-in">
+            <div style={{ marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: "1rem", margin: 0 }}>Preview</h3>
+              <a href={pdfData} download className="gc-btn gc-btn-secondary" style={{ fontSize: "13px", padding: "6px 16px" }}>
+                ⬇ Download PDF
+              </a>
+            </div>
+            <PdfView pdf={pdfData} />
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

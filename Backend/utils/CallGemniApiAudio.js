@@ -1,19 +1,22 @@
-const fetch = require("node-fetch");
 require("dotenv").config();
 
-const GEMINI_API_KEY = process.env.GEMNI_API_KEY;
-const GEMINI_API_URL = process.env.GEMNI_API;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-pro";
 
 async function callGeminiAPIAudio(audioBase64, mimeType) {
-    console.log("Gemini API called on audio base64 ->", audioBase64);
-    // return "Hit succesful lkjhbnj";
+    if (!audioBase64) return null;
 
-    if (!GEMINI_API_KEY || !GEMINI_API_URL) {
-        clg(GEMINI_API_KEY, GEMINI_API_URL)
-        throw new Error("API key or URL not configured");
+    if (typeof fetch !== "function") {
+        throw new Error("Use Node.js 18+ or add a fetch polyfill.");
     }
 
-    const response = await fetch(GEMINI_API_URL, {
+    if (!GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY not configured");
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+    const response = await fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -22,11 +25,14 @@ async function callGeminiAPIAudio(audioBase64, mimeType) {
         body: JSON.stringify({
             contents: [
                 {
+                    role: "user",
                     parts: [
                         {
                             text: `You are an AI teaching assistant. 
-Listen to this short audio clip from a live class and summarize it in 2–3 sentences. 
-Do not transcribe it word-for-word — give a clean summary of what was said.and dont give disclaimers also if audio is empty return null directly`,
+Summarize the following classroom audio in 2–3 sentences.
+Do NOT transcribe.
+Do NOT add disclaimers.
+If audio is empty, return null.`,
                         },
                         {
                             inlineData: {
@@ -40,15 +46,14 @@ Do not transcribe it word-for-word — give a clean summary of what was said.and
         }),
     });
 
-    // if (!response.ok) {
-    //     const errorData = await response.json().catch(() => ({ message: response.statusText }));
-    //     throw new Error(`Gemini API error: ${JSON.stringify(errorData)}`);
-    // }
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini API error: ${errorText}`);
+    }
 
     const data = await response.json();
-    console.log("Gemini API response:", data);
 
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
 }
 
 module.exports = { callGeminiAPIAudio };

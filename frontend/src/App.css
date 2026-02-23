@@ -1,25 +1,6 @@
 #App {
-    /* Soft animated gradient background aligned with the educational palette */
-    background: linear-gradient(120deg,
-        rgba(30, 136, 229, 0.12) 0%,
-        rgba(66, 165, 245, 0.12) 33%,
-        rgba(46, 125, 50, 0.12) 66%,
-        rgba(249, 168, 37, 0.10) 100%
-    );
-    background-size: 200% 200%;
-    animation: eduGradientShift 18s ease-in-out infinite;
+    background: var(--gc-bg, #f6f8fc);
     min-height: 100vh;
-    padding: 20px;
 }
 
-@keyframes eduGradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-#Previous{
-    background: transparent;
-    min-height: 100vh; 
-    padding: 100px; 
-}
+/* Remove the animated gradient, use clean Google Classroom bg */

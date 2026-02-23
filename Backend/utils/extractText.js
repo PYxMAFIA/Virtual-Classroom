@@ -1,30 +1,55 @@
-const fetch = require("node-fetch");
-const FormData = require("form-data");
+const pdfParse = require("pdf-parse");
+const mammoth = require("mammoth");
+const path = require("path");
 
-async function extractText(buffer) {
+const normalize = (text) => String(text || "").replace(/\s+/g, " ").trim();
+
+/**
+ * Extract text from common classroom upload formats.
+ *
+ * Supports:
+ * - PDF (via pdf-parse)
+ * - DOCX (via mammoth)
+ * - Plain text fallback
+ *
+ * @param {Buffer} buffer
+ * @param {{ filename?: string, mimeType?: string }} [opts]
+ * @returns {Promise<string>}
+ */
+async function extractText(buffer, opts = {}) {
+  if (!buffer || !Buffer.isBuffer(buffer)) return "";
+
+  const filename = opts.filename || "";
+  const mimeType = opts.mimeType || "";
+  const ext = filename ? path.extname(filename).toLowerCase() : "";
+
+  const looksLikePdf = ext === ".pdf" || mimeType === "application/pdf";
+  const looksLikeDocx =
+    ext === ".docx" ||
+    mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const looksLikeTxt = ext === ".txt" || mimeType.startsWith("text/");
+
   try {
-    const formData = new FormData();
-    formData.append("file", buffer, "file.pdf");
-    formData.append("apikey", process.env.OCR_API_KEY);
-
-    const response = await fetch(process.env.OCR_API, {
-      method: "POST",
-      body: formData,
-    });
-
-    const result = await response.json();
-
-    if (!result.ParsedResults || !result.ParsedResults[0]) {
-      throw new Error("OCR API returned no results");
+    if (looksLikePdf) {
+      const parsed = await pdfParse(buffer);
+      return normalize(parsed.text);
     }
 
-    const ocrText = result.ParsedResults[0].ParsedText?.replace(/\s+/g, " ").trim();
-    console.log("✅ Extracted text via OCR API", ocrText);
+    if (looksLikeDocx) {
+      const result = await mammoth.extractRawText({ buffer });
+      return normalize(result.value);
+    }
 
-    return ocrText || "";
+    if (looksLikeTxt) {
+      return normalize(buffer.toString("utf8"));
+    }
+
+    // Best-effort fallback.
+    // For unsupported formats (images, scans, etc.), consider plugging an OCR provider.
+    return normalize(buffer.toString("utf8"));
   } catch (err) {
-    console.error("❌ OCR API error:", err);
-    throw new Error("Failed to extract text");
+    console.error("❌ extractText failed:", err?.message || err);
+    return "";
   }
 }
 

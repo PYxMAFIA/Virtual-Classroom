@@ -3,19 +3,29 @@ import { Container, Card, Form, Button, Alert, Spinner, Row, Col, Badge, Progres
 import toast from 'react-hot-toast';
 import axios from "axios";
 import JSON5 from "json5";
-import Cookies from "js-cookie";
+import { useNavigate } from "react-router-dom";
+import { getUser, getToken } from "../utils/auth";
 
 const EvaluateSolution = () => {
+    const navigate = useNavigate();
     const [modelFile, setModelFile] = useState(null);
     const [studentFile, setStudentFile] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [revealing, setRevealing] = useState(false); 
-    const [displayedText, setDisplayedText] = useState(""); 
+    const [revealing, setRevealing] = useState(false);
+    const [displayedText, setDisplayedText] = useState("");
     const [result, setResult] = useState(null);
     const [parsingStatus, setParsingStatus] = useState(null); // 'clean' | 'json5' | 'sanitized' | 'sanitized-json5' | 'raw'
     const [error, setError] = useState("");
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const token = Cookies.get("token");
+    const token = getToken();
+
+    useEffect(() => {
+        const user = getUser();
+        if (user?.role && user.role !== 'teacher') {
+            toast.error('AI Checker is for teachers only');
+            navigate('/');
+        }
+    }, [navigate]);
 
     // Format result into a human-friendly multi-line string (no JSON brackets/commas)
     const formatResult = (data, indent = 0) => {
@@ -136,7 +146,7 @@ const EvaluateSolution = () => {
         if (!raw || typeof raw !== 'string') return null;
         const text = raw.replace(/\r?\n/g, '\n');
 
-    const overallMatch = text.match(/(?:\bmarks\b[^\d\n:\/]*|\btotal\b[^\d\n:\/]*|\bscore\b[^\d\n:\/]*)?(\d+\s*\/\s*\d+)/i);
+        const overallMatch = text.match(/(?:\bmarks\b[^\d\n:/]*|\btotal\b[^\d\n:/]*|\bscore\b[^\d\n:/]*)?(\d+\s*\/\s*\d+)/i);
         const overall = overallMatch ? overallMatch[1].replace(/\s+/g, '') : null;
 
         // per-question: find sequences like 'question 1' ... 'marks ... 3/5'
@@ -151,7 +161,7 @@ const EvaluateSolution = () => {
                 // look ahead a few lines for marks
                 let found = null;
                 for (let j = i; j <= Math.min(i + 4, lines.length - 1); j++) {
-                    const m = lines[j].match(/(marks?[^\d\n:\/]*|marks\s+of\s+this\s+question[^\d\n:\/]*)?(\d+\s*\/\s*\d+)/i);
+                    const m = lines[j].match(/(marks?[^\d\n:/]*|marks\s+of\s+this\s+question[^\d\n:/]*)?(\d+\s*\/\s*\d+)/i);
                     if (m) {
                         found = m[2].replace(/\s+/g, '');
                         break;
@@ -281,7 +291,7 @@ const EvaluateSolution = () => {
             setResult(parsed);
             setRevealing(true);
         } catch (err) {
-            console.error(err);
+            console.error("❌ Evaluate error:", err?.response?.data || err.message);
             setError("Error evaluating the solutions. Please try again.");
             toast.error('Error evaluating the solutions. Please try again.');
         } finally {
@@ -307,10 +317,10 @@ const EvaluateSolution = () => {
     };
 
     const formatFileSize = (size) => {
-    if (!size && size !== 0) return "";
-    if (size < 1024) return `${size} B`;
-    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-    return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+        if (!size && size !== 0) return "";
+        if (size < 1024) return `${size} B`;
+        if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+        return `${(size / (1024 * 1024)).toFixed(2)} MB`;
     };
 
     // Try to extract a simple summary (score/total/percentage/conclusion)
@@ -325,7 +335,7 @@ const EvaluateSolution = () => {
             for (const k of Object.keys(obj)) {
                 try {
                     if (keys.includes(k.toLowerCase())) return obj[k];
-                } catch (e) {}
+                } catch (e) { }
                 const val = obj[k];
                 const nested = findByKey(val, keys);
                 if (nested !== null && nested !== undefined) return nested;
@@ -394,7 +404,7 @@ const EvaluateSolution = () => {
                 const p = Number(summary.percentage);
                 if (!isNaN(p)) summary.percentage = p;
             }
-        } catch (e) {}
+        } catch (e) { }
 
         // compute percentage if possible
         if ((summary.percentage === null || summary.percentage === undefined) && typeof summary.score === 'number' && typeof summary.total === 'number' && summary.total > 0) {
