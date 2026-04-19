@@ -3,29 +3,21 @@ const { createAssignment, getClassroomAssignments, getAssignmentById } = require
 const authenticateToken = require('../utils/auth');
 const { requireTeacher } = require('../utils/requireTeacher');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
 const assignmentRouter = express.Router();
 
-const assignmentsDir = path.join(__dirname, '../uploads/assignments');
-if (!fs.existsSync(assignmentsDir)) {
-	fs.mkdirSync(assignmentsDir, { recursive: true });
-}
+// Use memory storage - files are uploaded directly to ImageKit
+const uploadAssignmentFile = multer({ storage: multer.memoryStorage() });
 
-const assignmentStorage = multer.diskStorage({
-	destination: function (req, file, cb) {
-		cb(null, assignmentsDir);
-	},
-	filename: function (req, file, cb) {
-		const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-		cb(null, uniqueSuffix + path.extname(file.originalname));
-	},
-});
+const logAssignmentCreateRequest = (req, _res, next) => {
+    console.log('[assignment/create] Route hit', {
+        contentType: req.headers['content-type'],
+        userId: req.user?.id || null,
+    });
+    next();
+};
 
-const uploadAssignmentFile = multer({ storage: assignmentStorage });
-
-assignmentRouter.post('/create', authenticateToken, requireTeacher, uploadAssignmentFile.single('file'), createAssignment);
+assignmentRouter.post('/create', authenticateToken, requireTeacher, logAssignmentCreateRequest, uploadAssignmentFile.single('file'), createAssignment);
 assignmentRouter.get('/classroom/:classroomId', authenticateToken, getClassroomAssignments);
 assignmentRouter.get('/item/:assignmentId', authenticateToken, getAssignmentById);
 

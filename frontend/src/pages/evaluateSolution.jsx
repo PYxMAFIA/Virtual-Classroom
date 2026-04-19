@@ -523,7 +523,7 @@ const EvaluateSolution = () => {
     }, [revealing, result]);
 
     return (
-        <Container fluid style={{ padding: 24 }}>
+        <Container fluid style={{ padding: 24, paddingTop: 88 }}>
             <Row className="justify-content-center">
                 <Col xs={12} lg={10}>
                     <Card style={{ padding: 20, borderRadius: 12, boxShadow: "0 6px 24px rgba(0,0,0,0.06)" }}>

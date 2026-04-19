@@ -18,7 +18,7 @@ const NAV = () => {
     let cancelled = false;
     const checkBackend = async () => {
       try {
-        await axios.get(`${BACKEND_URL}/health`, { timeout: 15000 });
+        await axios.get(`${BACKEND_URL}/health`, { timeout: 15000, skipGlobalLoader: true });
         if (!cancelled) setBackendStatus("online");
       } catch {
         if (!cancelled) setBackendStatus("offline");

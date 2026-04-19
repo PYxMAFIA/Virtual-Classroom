@@ -15,6 +15,10 @@ import Meet from './pages/meet';
 import ClassroomDetail from './pages/ClassroomDetail';
 import ReviewSubmissions from './pages/ReviewSubmissions';
 import OnboardingGate from './components/OnboardingGate';
+import ErrorBoundary from './components/ErrorBoundary';
+import NAV from './components/navbar';
+import GlobalLoader from './components/GlobalLoader';
+import { GlobalLoadingProvider } from './context/GlobalLoadingContext';
 
 const BackendGate = ({ children }) => {
   const [isReady, setIsReady] = useState(false);
@@ -24,7 +28,7 @@ const BackendGate = ({ children }) => {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        await axios.get(`${BACKEND_URL}/health`);
+        await axios.get(`${BACKEND_URL}/health`, { skipGlobalLoader: true });
         setIsReady(true);
       } catch (err) {
         console.log("Waiting for backend...");
@@ -68,26 +72,45 @@ function App() {
 
   return (
     <div id='App'>
-      <BackendGate>
-        <BrowserRouter>
-          <Toaster position="top-center" toastOptions={{ duration: 2000 }} />
-          <OnboardingGate>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/previous" element={<Previous />} />
-              <Route path="/upload" element={<Upload />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/register" element={<AdminRegister />} />
-              <Route path="/superadmin" element={<SuperAdminContent />} />
-              <Route path="/evaluate" element={<EvaluateSolution />} />
-              <Route path="/review-submissions" element={<ReviewSubmissions />} />
-              <Route path="/meet" element={<Meet />} />
-              <Route path="/meet/:meetingId" element={<Meet />} />
-              <Route path="/classroom/:classroomCode" element={<ClassroomDetail />} />
-            </Routes>
-          </OnboardingGate>
-        </BrowserRouter>
-      </BackendGate>
+      <GlobalLoadingProvider>
+        <BackendGate>
+          <BrowserRouter>
+            <Toaster position="top-center" toastOptions={{ duration: 2000 }} />
+            <NAV />
+            <OnboardingGate>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/previous" element={<Previous />} />
+                <Route path="/upload" element={<Upload />} />
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/register" element={<AdminRegister />} />
+                <Route path="/superadmin" element={<SuperAdminContent />} />
+                <Route path="/evaluate" element={<EvaluateSolution />} />
+                <Route path="/review-submissions" element={<ReviewSubmissions />} />
+                <Route path="/classroom/:classroomCode" element={<ClassroomDetail />} />
+                {/* Meet routes wrapped with ErrorBoundary to prevent full app crash */}
+                <Route
+                  path="/meet"
+                  element={
+                    <ErrorBoundary>
+                      <Meet />
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="/meet/:meetingId"
+                  element={
+                    <ErrorBoundary>
+                      <Meet />
+                    </ErrorBoundary>
+                  }
+                />
+              </Routes>
+            </OnboardingGate>
+            <GlobalLoader />
+          </BrowserRouter>
+        </BackendGate>
+      </GlobalLoadingProvider>
     </div>
   )
 }

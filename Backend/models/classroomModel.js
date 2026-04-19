@@ -70,6 +70,14 @@ const classroomSchema = new mongoose.Schema({
         ref: 'User',
         default: null,
     },
+    meetStartedAt: {
+        type: Date,
+        default: null,
+    },
+    meetLastHeartbeat: {
+        type: Date,
+        default: null,
+    },
 }, { timestamps: true });
 
 const Classroom = mongoose.model('Classroom', classroomSchema);

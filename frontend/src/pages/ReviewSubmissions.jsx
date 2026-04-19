@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Card, Spinner, Badge, Table } from "react-bootstrap";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
-import NAV from "../components/navbar";
 import toast from "react-hot-toast";
 import { getToken, getUser } from "../utils/auth";
+import { getDirectFileUrl } from "../utils/fileUrl";
 
 const ReviewSubmissions = () => {
+    const PAGE_LOADING_FALLBACK_MS = 5000;
     const location = useLocation();
     const navigate = useNavigate();
     const queryParams = new URLSearchParams(location.search);
@@ -19,67 +20,157 @@ const ReviewSubmissions = () => {
     const [publishing, setPublishing] = useState(false);
     const [evaluationResult, setEvaluationResult] = useState(null);
     const [classroomId, setClassroomId] = useState(null);
+    const [loadError, setLoadError] = useState("");
 
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const token = getToken();
     const user = getUser();
 
     useEffect(() => {
+        let isMounted = true;
+        let loadingFallbackTimer = null;
+
+        const clearLoadingFallbackTimer = () => {
+            if (loadingFallbackTimer) {
+                clearTimeout(loadingFallbackTimer);
+                loadingFallbackTimer = null;
+            }
+        };
+
         if (user?.role !== 'teacher') {
             toast.error('Teachers only');
+            setLoading(false);
             navigate('/');
-            return;
+            return () => {
+                isMounted = false;
+                clearLoadingFallbackTimer();
+            };
+        }
+
+        if (!assignmentId) {
+            setLoadError("Missing assignment ID.");
+            setLoading(false);
+            return () => {
+                isMounted = false;
+                clearLoadingFallbackTimer();
+            };
         }
 
         if (assignmentId) {
             const fetchSubmissions = async () => {
+                loadingFallbackTimer = setTimeout(() => {
+                    if (!isMounted) return;
+                    console.warn("[ReviewSubmissions] Loading fallback triggered after 5 seconds");
+                    setLoading(false);
+                }, PAGE_LOADING_FALLBACK_MS);
                 try {
+                    setLoadError("");
+                    console.log("[ReviewSubmissions] Fetching assignment metadata", { assignmentId });
                     const assignmentRes = await axios.get(`${BACKEND_URL}/assignment/item/${assignmentId}`, {
-                        headers: { Authorization: `Bearer ${token}` }
+                        headers: { Authorization: `Bearer ${token}` },
+                        timeout: 20000,
+                        skipGlobalLoader: true,
                     });
+                    if (!isMounted) return;
+                    console.log("[ReviewSubmissions] Assignment metadata response received", { status: assignmentRes.status });
                     setClassroomId(assignmentRes.data?.assignment?.classroom || null);
 
+                    console.log("[ReviewSubmissions] Fetching submissions", { assignmentId });
                     const response = await axios.get(`${BACKEND_URL}/submission/assignment/${assignmentId}`, {
-                        headers: { Authorization: `Bearer ${token}` }
+                        headers: { Authorization: `Bearer ${token}` },
+                        timeout: 20000,
+                        skipGlobalLoader: true,
+                    });
+                    if (!isMounted) return;
+                    console.log("[ReviewSubmissions] Submissions response received", {
+                        status: response.status,
+                        count: response.data?.submissions?.length || 0,
                     });
                     setSubmissions(response.data.submissions);
                 } catch (err) {
-                    toast.error("Failed to fetch submissions");
+                    if (!isMounted) return;
+                    const message = err?.response?.data?.message || "Failed to fetch submissions";
+                    setLoadError(message);
+                    toast.error(message);
                 } finally {
-                    setLoading(false);
+                    clearLoadingFallbackTimer();
+                    if (isMounted) {
+                        setLoading(false);
+                    }
                 }
             };
             fetchSubmissions();
         }
+
+        return () => {
+            isMounted = false;
+            clearLoadingFallbackTimer();
+        };
     }, [assignmentId, BACKEND_URL, token, user, navigate]);
 
     const refreshSubmissions = async () => {
         if (!assignmentId) return;
-        const response = await axios.get(`${BACKEND_URL}/submission/assignment/${assignmentId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        setSubmissions(response.data.submissions);
+        try {
+            console.log("[ReviewSubmissions] Refreshing submissions", { assignmentId });
+            const response = await axios.get(`${BACKEND_URL}/submission/assignment/${assignmentId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 20000,
+                skipGlobalLoader: true,
+            });
+            console.log("[ReviewSubmissions] Refresh response received", {
+                status: response.status,
+                count: response.data?.submissions?.length || 0,
+            });
+            setSubmissions(response.data.submissions);
+            setLoadError("");
+        } catch (err) {
+            const message = err?.response?.data?.message || "Failed to refresh submissions";
+            setLoadError(message);
+            throw err;
+        }
+    };
+
+    const openSubmissionFile = (rawUrl) => {
+        const fileUrl = getDirectFileUrl(rawUrl);
+        if (!fileUrl) {
+            toast.error("Invalid submission file URL. Ask the student to re-upload.");
+            return;
+        }
+
+        const openedWindow = window.open(fileUrl, "_blank", "noopener,noreferrer");
+        if (!openedWindow) {
+            toast.error("Unable to open file. Please allow pop-ups in your browser.");
+        }
     };
 
     const handleEvaluate = async (submission) => {
         setEvaluating(true);
         try {
-            const formData = new FormData();
+            console.log("[ReviewSubmissions] Starting AI evaluation", { submissionId: submission._id });
             const response = await axios.post(
                 `${BACKEND_URL}/submission/evaluate-ai/${submission._id}`,
-                formData,
+                {},
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
-                        "Content-Type": "multipart/form-data",
                     },
+                    timeout: 45000,
+                    skipGlobalLoader: true,
                 }
             );
+            console.log("[ReviewSubmissions] AI evaluation response received", {
+                submissionId: submission._id,
+                status: response.status,
+            });
 
             toast.success("AI grading completed");
             setEvaluationResult(response.data.submission);
             await refreshSubmissions();
         } catch (err) {
+            console.error("[ReviewSubmissions] AI evaluation failed", {
+                submissionId: submission._id,
+                message: err?.response?.data?.message || err.message,
+            });
             toast.error(err?.response?.data?.message || "Evaluation failed");
         } finally {
             setEvaluating(false);
@@ -93,17 +184,27 @@ const ReviewSubmissions = () => {
         }
         setQueueEvaluating(true);
         try {
+            console.log("[ReviewSubmissions] Starting queue evaluation", { classroomId });
             const res = await axios.post(
                 `${BACKEND_URL}/submission/evaluate-next`,
                 { classroomId },
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` }, timeout: 45000, skipGlobalLoader: true }
             );
+            console.log("[ReviewSubmissions] Queue evaluation response received", {
+                classroomId,
+                status: res.status,
+                hasSubmission: !!res.data?.submission,
+            });
 
             if (!res.data?.submission) toast.success('No pending submissions');
             else toast.success('Evaluated next submission');
 
             await refreshSubmissions();
         } catch (err) {
+            console.error("[ReviewSubmissions] Queue evaluation failed", {
+                classroomId,
+                message: err?.response?.data?.message || err.message,
+            });
             toast.error(err?.response?.data?.message || 'Queue evaluation failed');
         } finally {
             setQueueEvaluating(false);
@@ -117,14 +218,24 @@ const ReviewSubmissions = () => {
         }
         setPublishing(true);
         try {
+            console.log("[ReviewSubmissions] Publishing results", { classroomId });
             const res = await axios.post(
                 `${BACKEND_URL}/submission/publish`,
                 { classroomId },
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` }, timeout: 30000, skipGlobalLoader: true }
             );
+            console.log("[ReviewSubmissions] Publish response received", {
+                classroomId,
+                status: res.status,
+                modifiedCount: res.data?.modifiedCount || 0,
+            });
             toast.success(`Published ${res.data?.modifiedCount || 0} results`);
             await refreshSubmissions();
         } catch (err) {
+            console.error("[ReviewSubmissions] Publish failed", {
+                classroomId,
+                message: err?.response?.data?.message || err.message,
+            });
             toast.error(err?.response?.data?.message || 'Publish failed');
         } finally {
             setPublishing(false);
@@ -135,7 +246,6 @@ const ReviewSubmissions = () => {
 
     return (
         <>
-            <NAV />
             <div className="gc-page-wide" style={{ paddingTop: "88px" }}>
                 <div style={{ marginBottom: "24px" }}>
                     <button className="gc-btn gc-btn-secondary mb-3" onClick={() => navigate(-1)}>← Back</button>
@@ -173,6 +283,11 @@ const ReviewSubmissions = () => {
                     </div>
                     <div className="col-md-8">
                         <Card className="gc-card" style={{ padding: "0", overflow: "hidden" }}>
+                            {loadError && (
+                                <div style={{ padding: "12px 16px", background: "var(--gc-red-light)", color: "var(--gc-red)", fontSize: "13px" }}>
+                                    Failed to load submissions: {loadError}
+                                </div>
+                            )}
                             <Table hover responsive style={{ margin: 0 }}>
                                 <thead style={{ background: "var(--gc-bg)" }}>
                                     <tr>
@@ -200,13 +315,13 @@ const ReviewSubmissions = () => {
                                                 </td>
                                                 <td>{(s.isEvaluated || s.evaluated) ? `${(s.aiScore ?? s.marks)}/10` : '-'}</td>
                                                 <td>
-                                                    {s.fileUrl && (
+                                                    {(s.fileUrl || s.solutionFileURL) && (
                                                         <button
                                                             className="gc-btn gc-btn-text"
                                                             style={{ padding: "4px 8px", marginRight: "6px" }}
-                                                            onClick={() => window.open(`${BACKEND_URL}${s.fileUrl}`, "_blank")}
+                                                            onClick={() => openSubmissionFile(s.fileUrl || s.solutionFileURL)}
                                                         >
-                                                            View PDF
+                                                            View File
                                                         </button>
                                                     )}
                                                     <button

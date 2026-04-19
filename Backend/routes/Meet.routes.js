@@ -91,11 +91,13 @@ meetRouter.post("/live-summary", upload.single("audio"), liveSummary)
 
 meetRouter.post('/summarize-captions', authenticateToken, summarizeCaptions);
 
-const { startMeet, endMeet } = require("../controllers/meetController");
+const { startMeet, endMeet, meetHeartbeat, checkMeetStatus } = require("../controllers/meetController");
 
 meetRouter.post("/start-classroom-meet", authenticateToken, startMeet);
 meetRouter.post("/end-classroom-meet", authenticateToken, endMeet);
 meetRouter.post("/end-meet", authenticateToken, endMeet);
 meetRouter.post("/summarize-text", authenticateToken, summarizeText);
+meetRouter.post("/heartbeat", authenticateToken, meetHeartbeat);
+meetRouter.get("/status", authenticateToken, checkMeetStatus);
 
 module.exports = { meetRouter };

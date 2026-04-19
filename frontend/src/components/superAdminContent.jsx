@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Spinner } from "react-bootstrap";
 import toast from 'react-hot-toast';
-import NAV from "./navbar";
 import { getToken, getUser } from "../utils/auth";
 
 const STAT_CARDS = [
@@ -94,7 +93,6 @@ function SuperAdminContent() {
 
   return (
     <>
-      <NAV />
       <div className="gc-page-wide" style={{ paddingTop: "88px" }}>
         <div className="gc-animate-in">
           {/* Header */}

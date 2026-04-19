@@ -78,6 +78,7 @@ function Controls({
   onLeave,
   onEndMeet,
   classroomId,
+  classroomCode,
 }) {
   const navigate = useNavigate();
 
@@ -89,7 +90,13 @@ function Controls({
           <>
             <button
               className="meet-ctrl-btn"
-              onClick={() => navigate(`/classroom/${classroomId}`)}
+              onClick={() => {
+                if (classroomCode) {
+                  navigate(`/classroom/${classroomCode}`);
+                  return;
+                }
+                navigate(-1);
+              }}
             >
               <BackIcon />
               <span className="meet-ctrl-tooltip">Back to Classroom</span>

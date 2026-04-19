@@ -11,31 +11,23 @@ const {
 } = require('../controllers/submissionController');
 const authenticateToken = require('../utils/auth');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const { requireTeacher } = require('../utils/requireTeacher');
 
-const submissionsDir = path.join(__dirname, '../uploads/submissions');
-if (!fs.existsSync(submissionsDir)) {
-	fs.mkdirSync(submissionsDir, { recursive: true });
-}
-
-const submissionStorage = multer.diskStorage({
-	destination: function (req, file, cb) {
-		cb(null, submissionsDir);
-	},
-	filename: function (req, file, cb) {
-		const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-		cb(null, uniqueSuffix + path.extname(file.originalname));
-	},
-});
-
-const uploadSubmission = multer({ storage: submissionStorage });
+// Use memory storage for submissions - files are uploaded directly to ImageKit
+const uploadSubmission = multer({ storage: multer.memoryStorage() });
 const uploadModel = multer({ storage: multer.memoryStorage() });
 
 const submissionRouter = express.Router();
 
-submissionRouter.post('/submit', authenticateToken, uploadSubmission.single('file'), submitAssignment);
+const logSubmissionRequest = (req, _res, next) => {
+	console.log('[submission/submit] Route hit', {
+		contentType: req.headers['content-type'],
+		userId: req.user?.id || null,
+	});
+	next();
+};
+
+submissionRouter.post('/submit', authenticateToken, logSubmissionRequest, uploadSubmission.single('file'), submitAssignment);
 
 // Student views their own submission (results visible only when published)
 submissionRouter.get('/my', authenticateToken, getMySubmission);

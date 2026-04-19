@@ -53,6 +53,12 @@ const submissionSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+
+    // ImageKit file storage reference
+    imagekitFileId: {
+        type: String,
+        default: null,
+    },
 }, { timestamps: true });
 
 submissionSchema.pre('save', function (next) {

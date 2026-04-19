@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import NAV from "../components/navbar";
 import { Spinner, Tabs, Tab, Modal, Form, Badge } from "react-bootstrap";
 import toast from "react-hot-toast";
 import { getToken, getUser } from "../utils/auth";
 import { io } from "socket.io-client";
+import { getDirectFileUrl } from "../utils/fileUrl";
 
 const ClassroomDetail = () => {
     const { classroomCode } = useParams();
@@ -20,6 +20,10 @@ const ClassroomDetail = () => {
     const [assignmentFile, setAssignmentFile] = useState(null);
     const [lastCaption, setLastCaption] = useState(null);
     const [mySubmissions, setMySubmissions] = useState({}); // { assignmentId: submission }
+    const [startingMeet, setStartingMeet] = useState(false);
+    const [creatingAssignment, setCreatingAssignment] = useState(false);
+    const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+    const [assignmentsError, setAssignmentsError] = useState("");
 
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const token = getToken();
@@ -45,9 +49,12 @@ const ClassroomDetail = () => {
 
     const fetchClassroom = useCallback(async () => {
         try {
+            console.log("[ClassroomDetail] Fetching classroom", { classroomCode });
             const response = await axios.get(`${BACKEND_URL}/classroom/${classroomCode}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 15000,
             });
+            console.log("[ClassroomDetail] Classroom response received", { status: response.status });
             setClassroom(response.data.classroom);
         } catch (err) {
             toast.error("Classroom not found");
@@ -65,13 +72,26 @@ const ClassroomDetail = () => {
     useEffect(() => {
         if (classroom?._id && token) {
             const fetchAssignments = async () => {
+                setAssignmentsLoading(true);
+                setAssignmentsError("");
                 try {
+                    console.log("[ClassroomDetail] Fetching assignments", { classroomId: classroom._id });
                     const response = await axios.get(`${BACKEND_URL}/assignment/classroom/${classroom._id}`, {
-                        headers: { Authorization: `Bearer ${token}` }
+                        headers: { Authorization: `Bearer ${token}` },
+                        timeout: 20000,
+                    });
+                    console.log("[ClassroomDetail] Assignments response received", {
+                        status: response.status,
+                        count: response.data?.assignments?.length || 0,
                     });
                     setAssignments(response.data.assignments || []);
                 } catch (err) {
-                    console.error("Error fetching assignments:", err?.response?.data?.message || err.message);
+                    const message = err?.response?.data?.message || "Failed to load assignments";
+                    console.error("Error fetching assignments:", message);
+                    setAssignmentsError(message);
+                    setAssignments([]);
+                } finally {
+                    setAssignmentsLoading(false);
                 }
             };
             fetchAssignments();
@@ -85,13 +105,24 @@ const ClassroomDetail = () => {
                 const subs = {};
                 for (const a of assignments) {
                     try {
+                        console.log("[ClassroomDetail] Fetching my submission", { assignmentId: a._id });
                         const res = await axios.get(`${BACKEND_URL}/submission/my?assignmentId=${a._id}`, {
-                            headers: { Authorization: `Bearer ${token}` }
+                            headers: { Authorization: `Bearer ${token}` },
+                            timeout: 15000,
+                        });
+                        console.log("[ClassroomDetail] My submission response received", {
+                            assignmentId: a._id,
+                            status: res.status,
+                            hasSubmission: !!res.data?.submission,
                         });
                         if (res.data.submission) {
                             subs[a._id] = res.data.submission;
                         }
-                    } catch {
+                    } catch (err) {
+                        console.error("[ClassroomDetail] My submission fetch failed", {
+                            assignmentId: a._id,
+                            message: err?.response?.data?.message || err.message,
+                        });
                         // Not submitted yet — ignore
                     }
                 }
@@ -133,7 +164,7 @@ const ClassroomDetail = () => {
         try {
             await axios.post(`${BACKEND_URL}/classroom/join`,
                 { code: classroom.code },
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
             );
             toast.success("Joined classroom!");
             fetchClassroom();
@@ -143,31 +174,77 @@ const ClassroomDetail = () => {
     };
 
     const handleStartMeet = async () => {
+        if (startingMeet) return;
+        setStartingMeet(true);
         try {
-            const createRoomRes = await axios.post(`${BACKEND_URL}/meet/create-room`);
+            // Retry logic for room creation (up to 3 attempts)
+            let createRoomRes;
+            let attempts = 0;
+            while (attempts < 3) {
+                try {
+                    createRoomRes = await axios.post(`${BACKEND_URL}/meet/create-room`, {}, { timeout: 10000 });
+                    break;
+                } catch (err) {
+                    attempts++;
+                    if (attempts >= 3) throw err;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
             const { roomId } = createRoomRes.data;
 
-            await axios.post(`${BACKEND_URL}/meet/start-classroom-meet`,
-                { classroomId: classroom._id, roomId },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            // Start meet in classroom (with retry)
+            let startAttempts = 0;
+            while (startAttempts < 3) {
+                try {
+                    await axios.post(`${BACKEND_URL}/meet/start-classroom-meet`,
+                        { classroomId: classroom._id, roomId },
+                        { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
+                    );
+                    break;
+                } catch (err) {
+                    startAttempts++;
+                    if (startAttempts >= 3) throw err;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
 
-            toast.success("Meet started!");
-            navigate(`/meet/${roomId}?classroomId=${classroom._id}`);
+            toast.success("Meet started! Redirecting...");
+            // Small delay to allow socket broadcast to complete
+            setTimeout(() => {
+                navigate(`/meet/${roomId}?classroomId=${classroom._id}&classroomCode=${classroom.code}`);
+            }, 500);
         } catch (err) {
-            toast.error("Failed to start meet");
+            console.error("Meet start error:", err);
+            toast.error(err?.response?.data?.message || "Failed to start meet");
+        } finally {
+            setStartingMeet(false);
         }
     };
 
     const handleJoinMeet = () => {
         const roomId = classroom?.meetRoomId;
         if (classroom?.activeMeet && roomId) {
-            navigate(`/meet/${roomId}?classroomId=${classroom._id}`);
+            navigate(`/meet/${roomId}?classroomId=${classroom._id}&classroomCode=${classroom.code}`);
         }
     };
 
+    const openAssignmentFile = useCallback((rawUrl) => {
+        const fileUrl = getDirectFileUrl(rawUrl);
+        if (!fileUrl) {
+            toast.error("Invalid assignment file URL. Please ask your teacher to re-upload.");
+            return;
+        }
+
+        const openedWindow = window.open(fileUrl, "_blank", "noopener,noreferrer");
+        if (!openedWindow) {
+            toast.error("Unable to open file. Please allow pop-ups in your browser.");
+        }
+    }, []);
+
     const handleCreateAssignment = async (e) => {
         e.preventDefault();
+        if (creatingAssignment) return;
+        setCreatingAssignment(true);
         try {
             const formData = new FormData();
             formData.append('title', newAssignment.title);
@@ -175,24 +252,43 @@ const ClassroomDetail = () => {
             formData.append('dueDate', newAssignment.dueDate);
             formData.append('classroomId', classroom._id);
             if (assignmentFile) formData.append('file', assignmentFile);
+            formData.append('hasFile', assignmentFile ? '1' : '0');
 
+            console.log("[ClassroomDetail] Creating assignment", {
+                classroomId: classroom._id,
+                title: newAssignment.title,
+                hasFile: !!assignmentFile,
+                fileName: assignmentFile?.name || null,
+                fileSize: assignmentFile?.size || null,
+            });
             await axios.post(`${BACKEND_URL}/assignment/create`, formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    'Content-Type': 'multipart/form-data',
-                }
+                },
+                timeout: 60000,
             });
+            console.log("[ClassroomDetail] Create assignment response received");
             toast.success("Assignment created");
             setShowAssignModal(false);
             setNewAssignment({ title: "", description: "", dueDate: "" });
             setAssignmentFile(null);
             // Refresh assignments
+            setAssignmentsLoading(true);
+            setAssignmentsError("");
             const response = await axios.get(`${BACKEND_URL}/assignment/classroom/${classroom._id}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 20000,
+            });
+            console.log("[ClassroomDetail] Assignments refresh response received", {
+                status: response.status,
+                count: response.data?.assignments?.length || 0,
             });
             setAssignments(response.data.assignments || []);
         } catch (err) {
             toast.error(err?.response?.data?.message || "Failed to create assignment");
+        } finally {
+            setAssignmentsLoading(false);
+            setCreatingAssignment(false);
         }
     };
 
@@ -201,7 +297,6 @@ const ClassroomDetail = () => {
 
     return (
         <>
-            <NAV />
             <div className="gc-page-wide" style={{ paddingTop: "88px" }}>
                 {/* Banner */}
                 <div className="class-card-header" style={{
@@ -294,17 +389,19 @@ const ClassroomDetail = () => {
                                     ) : (
                                         <button
                                             onClick={handleStartMeet}
+                                            disabled={startingMeet}
                                             style={{
                                                 width: "100%", padding: "14px 20px", borderRadius: "12px",
                                                 border: "none", cursor: "pointer", fontSize: "15px", fontWeight: 600,
                                                 background: "linear-gradient(135deg, var(--gc-blue) 0%, #1a56db 100%)",
                                                 color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
-                                                boxShadow: "0 4px 16px rgba(66,133,244,0.3)", transition: "all 0.2s"
+                                                boxShadow: "0 4px 16px rgba(66,133,244,0.3)", transition: "all 0.2s",
+                                                opacity: startingMeet ? 0.75 : 1
                                             }}
                                             onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(66,133,244,0.4)"; }}
                                             onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 16px rgba(66,133,244,0.3)"; }}
                                         >
-                                            📹 Start a Meet
+                                            {startingMeet ? "⏳ Starting Meet..." : "📹 Start a Meet"}
                                         </button>
                                     )}
 
@@ -368,7 +465,16 @@ const ClassroomDetail = () => {
 
                             <div className="col-md-9">
                                 <div className="gc-animate-in">
-                                    {assignments.length === 0 ? (
+                                    {assignmentsLoading ? (
+                                        <div className="gc-center" style={{ minHeight: "140px" }}>
+                                            <Spinner animation="border" variant="primary" />
+                                        </div>
+                                    ) : assignmentsError ? (
+                                        <div className="gc-card" style={{ padding: "20px", border: "1px solid rgba(220,53,69,0.25)" }}>
+                                            <h5 style={{ marginBottom: "8px", color: "var(--gc-red)" }}>Failed to load assignments</h5>
+                                            <p style={{ margin: 0, color: "var(--gc-text-secondary)", fontSize: "14px" }}>{assignmentsError}</p>
+                                        </div>
+                                    ) : assignments.length === 0 ? (
                                         <div className="gc-empty-state" style={{ padding: "40px" }}>
                                             <div className="gc-empty-icon">📋</div>
                                             <h3>No announcements yet</h3>
@@ -424,7 +530,16 @@ const ClassroomDetail = () => {
                                 </button>
                             )}
 
-                            {assignments.length === 0 ? (
+                            {assignmentsLoading ? (
+                                <div className="gc-center" style={{ minHeight: "200px" }}>
+                                    <Spinner animation="border" variant="primary" />
+                                </div>
+                            ) : assignmentsError ? (
+                                <div className="gc-card" style={{ padding: "20px", border: "1px solid rgba(220,53,69,0.25)" }}>
+                                    <h5 style={{ marginBottom: "8px", color: "var(--gc-red)" }}>Failed to load assignments</h5>
+                                    <p style={{ margin: 0, color: "var(--gc-text-secondary)", fontSize: "14px" }}>{assignmentsError}</p>
+                                </div>
+                            ) : assignments.length === 0 ? (
                                 <div className="gc-empty-state" style={{ padding: "40px" }}>
                                     <div className="gc-empty-icon">📎</div>
                                     <h3>No assignments yet</h3>
@@ -461,7 +576,7 @@ const ClassroomDetail = () => {
                                                             View Submissions
                                                         </button>
                                                         {(a.fileUrl || a.fileURL) && (
-                                                            <button className="gc-btn gc-btn-text" onClick={() => window.open(`${BACKEND_URL}${a.fileUrl || a.fileURL}`, "_blank")}>
+                                                            <button className="gc-btn gc-btn-text" onClick={() => openAssignmentFile(a.fileUrl || a.fileURL)}>
                                                                 📄 View Attachment
                                                             </button>
                                                         )}
@@ -472,7 +587,7 @@ const ClassroomDetail = () => {
                                                             Submit Work
                                                         </button>
                                                         {(a.fileUrl || a.fileURL) && (
-                                                            <button className="gc-btn gc-btn-secondary" onClick={() => window.open(`${BACKEND_URL}${a.fileUrl || a.fileURL}`, "_blank")}>
+                                                            <button className="gc-btn gc-btn-secondary" onClick={() => openAssignmentFile(a.fileUrl || a.fileURL)}>
                                                                 📄 Download Assignment
                                                             </button>
                                                         )}
@@ -620,8 +735,8 @@ const ClassroomDetail = () => {
                                 onChange={(e) => setAssignmentFile(e.target.files?.[0] || null)}
                             />
                         </Form.Group>
-                        <button className="gc-btn gc-btn-primary" type="submit" style={{ width: "100%" }}>
-                            Create Assignment
+                        <button className="gc-btn gc-btn-primary" type="submit" disabled={creatingAssignment} style={{ width: "100%" }}>
+                            {creatingAssignment ? "Creating..." : "Create Assignment"}
                         </button>
                     </Form>
                 </Modal.Body>

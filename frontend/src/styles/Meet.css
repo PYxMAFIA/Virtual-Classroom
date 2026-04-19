@@ -7,6 +7,18 @@
     background: #111 !important;
 }
 
+.meet-shell {
+    margin-top: 64px;
+    height: calc(100vh - 64px);
+}
+
+.meet-shell .meet-root,
+.meet-shell .meet-join-wrapper,
+.meet-shell .meet-join-loading {
+    height: 100%;
+    min-height: 100%;
+}
+
 .meet-root {
     position: relative;
     display: flex;
@@ -177,9 +189,15 @@
 
 /* The join button inside the loading screen */
 .meet-join-loading .meet-join-btn {
-    width: auto;
-    min-width: 200px;
-    max-width: 300px;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+}
+
+@media (max-width: 480px) {
+    .meet-join-loading .meet-join-btn {
+        max-width: 100%;
+    }
 }
 
 /* ---------- Header ---------- */

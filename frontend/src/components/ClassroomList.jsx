@@ -4,8 +4,8 @@ import { Spinner } from "react-bootstrap";
 import { getToken } from "../utils/auth";
 
 const ClassroomList = ({ classrooms: classroomsProp, loading: loadingProp }) => {
-    const [classrooms, setClassrooms] = useState(classroomsProp || []);
-    const [loading, setLoading] = useState(loadingProp ?? true);
+    const [classrooms, setClassrooms] = useState([]);
+    const [loading, setLoading] = useState(true);
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     useEffect(() => {

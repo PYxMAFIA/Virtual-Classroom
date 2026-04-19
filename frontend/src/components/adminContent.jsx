@@ -1,6 +1,5 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import NAV from "./navbar";
 import CreateClassroom from "./CreateClassroom";
 
 const AdminContent = ({ handleContent }) => {
@@ -39,7 +38,6 @@ const AdminContent = ({ handleContent }) => {
 
   return (
     <>
-      <NAV />
       <div className="gc-page" style={{ paddingTop: "88px" }}>
         {/* Header */}
         <div style={{ marginBottom: "24px" }} className="gc-animate-in">

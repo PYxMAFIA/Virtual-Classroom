@@ -33,7 +33,6 @@ const AdminUploadPage = () => {
 
       await axios.post(BACKEND_URL + "/adminupload/upload-files", formData, {
         headers: {
-          "Content-Type": "multipart/form-data",
           Authorization: `Bearer ${token}`,
         },
       });

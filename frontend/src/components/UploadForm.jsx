@@ -28,9 +28,12 @@ const UploadForm = () => {
     if (assignmentId && token) {
       const fetchAssignment = async () => {
         try {
+          console.log("[UploadForm] Fetching assignment details", { assignmentId });
           const res = await axios.get(`${BACKEND_URL}/assignment/item/${assignmentId}`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 15000,
           });
+          console.log("[UploadForm] Assignment details response received", { status: res.status });
           setAssignmentTitle(res.data?.assignment?.title || "Assignment");
         } catch (err) {
           console.error("Error fetching assignment:", err);
@@ -46,7 +49,7 @@ const UploadForm = () => {
       const fetchColleges = async () => {
         try {
           const response = await axios.get(BACKEND_URL + "/tools/colleges");
-          setColleges(response.data?.colleges || []);
+          setColleges(response.data?.value || []);
         } catch (err) {
           console.error("Error fetching colleges:", err);
         }
@@ -67,6 +70,10 @@ const UploadForm = () => {
       toast.error("Please select a file to upload.");
       return;
     }
+    if (!token) {
+      toast.error("Please log in first.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -80,19 +87,28 @@ const UploadForm = () => {
       } else {
         if (!college || !year || !subjectCode) {
           toast.error("Please fill in all fields.");
-          setLoading(false);
           return;
         }
         formData.append("year", year);
-        formData.append("subjectCode", subjectCode);
+        formData.append("subjectcode", subjectCode);
         formData.append("college", college);
       }
 
+      console.log("[UploadForm] Starting upload", {
+        endpoint,
+        assignmentId: assignmentId || null,
+        fileName: file?.name || null,
+        fileSize: file?.size || null,
+      });
       await axios.post(endpoint, formData, {
         headers: {
-          "Content-Type": "multipart/form-data",
           "Authorization": `Bearer ${token}`
         },
+        timeout: 90000,
+      });
+      console.log("[UploadForm] Upload response received", {
+        endpoint,
+        assignmentId: assignmentId || null,
       });
 
       toast.success(assignmentId ? "Solution submitted!" : "File uploaded successfully!");
@@ -203,7 +219,7 @@ const UploadForm = () => {
             <Form.Select value={college} onChange={(e) => setCollege(e.target.value)} required>
               <option value="">Select teacher</option>
               {colleges.map((c, i) => (
-                <option key={i} value={c}>{c}</option>
+                <option key={i} value={c?.name || c?.email || c}>{c?.name || c?.email || c}</option>
               ))}
             </Form.Select>
           </Form.Group>

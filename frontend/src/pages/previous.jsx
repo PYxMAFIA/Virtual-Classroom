@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Form, Spinner } from "react-bootstrap";
 import axios from "axios";
-import NAV from "../components/navbar";
 import PdfView from "../components/PdfView";
 import toast from 'react-hot-toast';
 
@@ -78,7 +77,6 @@ const Previous = () => {
 
   return (
     <>
-      <NAV />
       <div className="gc-page" style={{ paddingTop: "88px" }}>
         <div className="gc-animate-in" style={{ marginBottom: "24px" }}>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 500 }}>Download Homework</h1>

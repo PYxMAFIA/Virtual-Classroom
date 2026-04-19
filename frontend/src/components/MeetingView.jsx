@@ -9,11 +9,13 @@ import { io } from "socket.io-client";
 import { getToken, getUser } from "../utils/auth";
 
 const SUMMARIZE_INTERVAL = 60000; // 60 seconds between summarization
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds heartbeat to prevent stale meet
 
-function MeetingView({ meetingId, onLeave, classroomId }) {
+function MeetingView({ meetingId, onLeave, classroomId, classroomCode }) {
 	const [joined, setJoined] = useState(null);
 	const currentUser = getUser();
 	const [linkCopied, setLinkCopied] = useState(false);
+	const [meetCheckDone, setMeetCheckDone] = useState(false);
 
 	// AI Summarizer state
 	const [summaries, setSummaries] = useState([]);
@@ -29,6 +31,7 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 	const captionBufferRef = useRef([]);
 	const summarizeTimerRef = useRef(null);
 	const quotaExhaustedRef = useRef(false); // prevent duplicate quota toasts
+	const authErrorShownRef = useRef(false);
 
 	const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -163,7 +166,22 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 	// This reduces API calls from 3/min (audio) to 1/min (text)
 
 	const summarizeBuffer = useCallback(async () => {
-		const buffer = captionBufferRef.current.join(" ").trim();
+		const authToken = getToken();
+		if (!authToken) {
+			if (!authErrorShownRef.current) {
+				authErrorShownRef.current = true;
+				toast.error("Please login to use AI summarizer.");
+			}
+			setIsRecording(false);
+			if (summarizeTimerRef.current) {
+				clearInterval(summarizeTimerRef.current);
+				summarizeTimerRef.current = null;
+			}
+			return;
+		}
+		authErrorShownRef.current = false;
+
+		const buffer = captionBufferRef.current.join(" ").replace(/\s+/g, " ").trim().slice(-12000);
 		if (!buffer || buffer.length < 20) {
 			// Not enough content to summarize
 			return;
@@ -173,8 +191,11 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 		try {
 			const res = await axios.post(
 				`${BACKEND_URL}/meet/summarize-text`,
-				{ text: buffer },
-				{ headers: { Authorization: `Bearer ${getToken()}` } }
+				{ text: buffer, outputLanguage: 'same' }, // Auto-detect and summarize in same language
+				{
+					headers: { Authorization: `Bearer ${authToken}` },
+					skipGlobalLoader: true,
+				}
 			);
 
 			if (res.data?.summary) {
@@ -197,6 +218,7 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 					summarizeTimerRef.current = null;
 				}
 			} else {
+				toast.error(errMsg || "Failed to generate AI summary.");
 				console.error("AI Summary error:", errMsg);
 			}
 		} finally {
@@ -206,6 +228,8 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 
 	const startAISummarizer = () => {
 		// Auto-enable captions so we have text to summarize
+		// Note: AI summarizer works from captions (local speech + socket captions from others)
+		// It does NOT require your mic to be on - works even with mic OFF
 		if (!captionsActive) {
 			setCaptionsActive(true);
 		}
@@ -213,7 +237,7 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 		quotaExhaustedRef.current = false; // reset quota flag on fresh start
 		setIsRecording(true);
 
-		toast.success("AI Summarizer started! Summaries every 60 seconds.", { icon: "🧠", id: 'ai-start' });
+		toast.success("AI Summarizer started! Works even with mic OFF.", { icon: "🧠", id: 'ai-start' });
 
 		// Start interval to summarize every 60s
 		summarizeTimerRef.current = setInterval(() => {
@@ -237,7 +261,13 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 
 	// Manual summarize (button in caption overlay)
 	const summarizeNow = async () => {
-		const buffer = captionBufferRef.current.join(" ").trim();
+		const authToken = getToken();
+		if (!authToken) {
+			toast.error("Please login to use AI summarizer.");
+			return;
+		}
+
+		const buffer = captionBufferRef.current.join(" ").replace(/\s+/g, " ").trim().slice(-12000);
 		if (!buffer || buffer.length < 10) {
 			// Fall back to server-side caption store
 			if (classroomId) {
@@ -246,7 +276,10 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 					const res = await axios.post(
 						BACKEND_URL + '/meet/summarize-captions',
 						{ classroomId, clearAfter: false },
-						{ headers: { Authorization: `Bearer ${getToken()}` } }
+						{
+							headers: { Authorization: `Bearer ${authToken}` },
+							skipGlobalLoader: true,
+						}
 					);
 					if (res.data?.summary) {
 						setSummaries((prev) => [...prev, String(res.data.summary).trim()]);
@@ -274,8 +307,11 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 		try {
 			const res = await axios.post(
 				`${BACKEND_URL}/meet/summarize-text`,
-				{ text: buffer },
-				{ headers: { Authorization: `Bearer ${getToken()}` } }
+				{ text: buffer, outputLanguage: 'same' }, // Auto-detect and summarize in same language
+				{
+					headers: { Authorization: `Bearer ${authToken}` },
+					skipGlobalLoader: true,
+				}
 			);
 			if (res.data?.summary) {
 				setSummaries((prev) => [...prev, res.data.summary.trim()]);
@@ -310,7 +346,10 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 			await axios.post(
 				`${BACKEND_URL}/meet/end-meet`,
 				{ classroomId },
-				{ headers: { Authorization: `Bearer ${getToken()}` } }
+				{
+					headers: { Authorization: `Bearer ${getToken()}` },
+					skipGlobalLoader: true,
+				}
 			);
 			console.log('✅ Meet ended for classroom');
 		} catch (err) {
@@ -319,6 +358,68 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 			}
 		}
 	};
+
+	// ─── Meet Heartbeat (prevents stale meet state) ───
+	useEffect(() => {
+		if (!classroomId || !meetingId || joined !== 'JOINED') return;
+
+		const sendHeartbeat = async () => {
+			try {
+				await axios.post(
+					`${BACKEND_URL}/meet/heartbeat`,
+					{ classroomId, roomId: meetingId },
+					{
+						headers: { Authorization: `Bearer ${getToken()}` },
+						skipGlobalLoader: true,
+					}
+				);
+			} catch (err) {
+				// Silently fail - heartbeat is best-effort
+				console.error('Heartbeat failed:', err?.response?.data || err.message);
+			}
+		};
+
+		// Send initial heartbeat
+		sendHeartbeat();
+
+		// Then send heartbeat every 30 seconds
+		const interval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+
+		return () => {
+			clearInterval(interval);
+		};
+	}, [classroomId, meetingId, joined, BACKEND_URL]);
+
+	// ─── Check meet status on mount (for rejoin scenarios) ───
+	useEffect(() => {
+		if (!classroomId || meetCheckDone) return;
+
+		const checkMeetStatus = async () => {
+			try {
+				const res = await axios.get(
+					`${BACKEND_URL}/meet/status?classroomId=${classroomId}`,
+					{
+						headers: { Authorization: `Bearer ${getToken()}` },
+						skipGlobalLoader: true,
+					}
+				);
+				const { active, roomId } = res.data;
+
+				if (active && roomId && roomId !== meetingId) {
+					// There's an active meet with a different room ID
+					toast.error('This meet session has been replaced. Rejoining...');
+					// Optionally redirect to the new room
+					window.location.href = `/meet/${roomId}?classroomId=${classroomId}${classroomCode ? `&classroomCode=${classroomCode}` : ""}`;
+				}
+			} catch (err) {
+				console.error('Meet status check failed:', err?.response?.data || err.message);
+			} finally {
+				setMeetCheckDone(true);
+			}
+		};
+
+		checkMeetStatus();
+	}, [classroomCode, classroomId, meetingId, meetCheckDone, BACKEND_URL]);
 
 	// ─── VideoSDK Hooks ───
 	const { join, participants, localMicOn, localWebcamOn, toggleMic, toggleWebcam, leave } =
@@ -583,6 +684,7 @@ function MeetingView({ meetingId, onLeave, classroomId }) {
 					leave();
 				} : null}
 				classroomId={classroomId}
+				classroomCode={classroomCode}
 			/>
 		</div>
 	);

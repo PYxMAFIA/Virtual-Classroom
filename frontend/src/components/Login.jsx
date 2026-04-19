@@ -205,7 +205,7 @@ const Login = () => {
         </Form>
 
         <div style={{ textAlign: "center", marginTop: "20px", fontSize: "14px", color: "var(--gc-text-secondary)" }}>
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link to="/admin/register" style={{ color: "var(--gc-blue)", textDecoration: "none", fontWeight: 500 }}>
             Create one
           </Link>

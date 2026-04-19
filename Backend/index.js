@@ -3,8 +3,6 @@ const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
 const { StudentUploadRouter } = require('./routes/StudentuploadPyq.routes');
@@ -31,15 +29,32 @@ connectToDatabase();
 const port = process.env.PORT || 4000;
 
 
-app.use(cors({ origin: '*' }));
-app.use(express.json());
+// CORS configuration - allow specific origins in production
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(url => url.trim())
+  : ['http://localhost:5173', 'http://localhost:3000'];
 
-// Serve uploaded files
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-app.use('/uploads', express.static(uploadsDir));
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Note: File uploads are stored on ImageKit only - no local file serving
 
 app.get('/', (req, res) => {
     res.send({ message: "✅ Server is working!" });
